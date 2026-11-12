@@ -32,11 +32,11 @@ The browser uploads PDFs straight to Supabase Storage. Everything else goes thro
 ### Components
 - **GitHub:** source of truth, connected to Vercel via Git integration.
 - **Vercel (Hobby):** pushes to `main` deploy to production; other branches and PRs get preview URLs. Env vars are set per environment (Production, Preview).
-- **Supabase (free):** project in Frankfurt. Schema from `supabase/migrations/`. Two private buckets: `sources` (PDF, max 10 MB) and `audio` (WAV).
+- **Supabase (free):** project in Frankfurt. Schema from `infra/supabase/migrations/`. Two private buckets: `sources` (PDF, max 10 MB) and `audio` (WAV).
 - **Gemini API (free tier):** called only from server code via the Vercel AI SDK. No billing enabled, so exceeding limits returns HTTP 429 instead of costing money.
 
 ### Runtime configuration
-- `vercel.json` pins functions to `fra1` (next to the Supabase region) and schedules the daily keep-alive cron.
+- `frontend/vercel.json` pins functions to `fra1` (next to the Supabase region) and schedules the daily keep-alive cron.
 - All Route Handlers: `export const runtime = "nodejs"` (parsing libraries need Node).
 - Long-running handlers (`/api/sources/[id]/process`, `/api/chat`, `/api/notes*`) set `export const maxDuration = 60`. Verify the current Vercel Hobby maximum; never rely on long timeouts, batch the work instead.
 - RLS is enabled on every table **with no policies**. Server code uses the secret key, which bypasses RLS; the public key in the browser can't read or write any table. The browser client exists only for `uploadToSignedUrl`.
@@ -64,52 +64,26 @@ Explain these in the README and the Loom video.
 ## 3. Code layout
 
 ```
-src/
-  app/
-    page.tsx                        notebook list (home)
-    notebook/[id]/page.tsx          notebook screen
-    notebook/[id]/actions.ts        server actions for that screen
-    actions.ts                      server actions for home (create/rename/delete notebook)
-    api/
-      health/route.ts
-      sources/upload-url/route.ts
-      sources/[id]/process/route.ts
-      chat/route.ts
-      notes/route.ts
-      notes/audio/route.ts          (stretch)
-  components/
-    ui/                             shadcn components (restyled)
-    notebook/                       sources, chat, notes areas
-  lib/
-    config.ts                       APP_NAME, limits
-    owner.ts                        getOwnerId(), assertNotebookOwner()
-    errors.ts                       AppError, error codes, user messages
-    supabase/server.ts              server client (secret key, server-only)
-    supabase/browser.ts             browser client (publishable key, uploads only)
-    db/                             typed query helpers, all scoped by owner_id
-    ai/models.ts                    model IDs
-    ai/prompts.ts                   all prompts
-    rag/extract.ts                  pdf / url / text → pages of text
-    rag/chunk.ts                    chunker (+ chunk.test.ts)
-    rag/embed.ts                    batched embeddings
-    rag/retrieve.ts                 match_chunks wrapper
-    rag/citations.ts                parse [n] markers (+ citations.test.ts)
-    rag/url-guard.ts                SSRF protection (+ url-guard.test.ts)
-  proxy.ts (or middleware.ts)       sets owner_id cookie
-fixtures/                           sample sources for testing and the demo
-supabase/migrations/
+package.json   npm workspaces + fan-out scripts
+frontend/      Next.js app, the Vercel root: pages, components, Server Actions, Route Handlers
+backend/       @repo/backend: server-only domain logic (db, services, ai, rag), client-safe "shared" entry
+infra/         schema migrations, setup runbook
+specs/         one spec per work package
+fixtures/      sample sources for testing and the demo
 ```
+
+The request path is `Browser → frontend (owner from cookie, thin adapter) → backend (validate → authorise → act) → Supabase / Gemini`. The detailed layout and rules of each folder live in its README: [frontend](../frontend/README.md), [backend](../backend/README.md), [infra](../infra/README.md).
 
 ## 4. Ownership
 
 - `proxy.ts` / `middleware.ts`: if the `owner_id` cookie is missing, set it to `crypto.randomUUID()`; `httpOnly`, `secure`, `sameSite: "lax"`, `maxAge` one year.
-- `getOwnerId()` reads the cookie (async in Next 15+). If absent, throw `UNAUTHORIZED`.
-- `assertNotebookOwner(notebookId)` loads the notebook with `owner_id` filter and throws `NOT_FOUND` if no row. Every handler and action that takes a notebook or source id calls it first.
+- `getOwnerId()` (frontend) reads the cookie (async in Next 15+). If absent, throw `UNAUTHORIZED`. It is the only place that decides who the owner is; the value goes to backend functions as a plain `ownerId` argument.
+- `assertNotebookOwner(ownerId, notebookId)` (backend) loads the notebook with `owner_id` filter and throws `NOT_FOUND` if no row. Every backend service that takes a notebook or source id calls it first.
 - Accessing someone else's notebook returns 404, not 403, so ids can't be probed.
 
 ## 5. Data model
 
-Full definition in `supabase/migrations/0001_init.sql`. Summary:
+Full definition in `infra/supabase/migrations/0001_init.sql`. Summary:
 
 | Table | Key columns |
 |---|---|
@@ -148,7 +122,7 @@ Any error in steps 3–7 → `status = 'failed'`, `error` = user-facing message 
 ### Client behaviour
 The client awaits the process call with a loading state. While any source in the notebook is `pending` or `processing`, the sources list refreshes every 2 s (e.g. `router.refresh()`), so a page reload mid-processing still resolves.
 
-### Limits (`src/lib/config.ts`)
+### Limits (`backend/src/shared/limits.ts`)
 - PDF max 10 MB and 300 pages
 - Max 10 sources per notebook
 - Max 20 new sources per owner per hour
@@ -178,7 +152,7 @@ Only `http:`/`https:`, default ports only. Resolve the hostname and reject loopb
 6. On finish: persist the assistant message with `citations` filtered to the numbers actually used in the answer.
 
 ### Rendering
-- `rag/citations.ts` finds markers `[1]`, `[1, 3]`, `[1][3]`, ignores numbers that aren't in the citation map, and returns segments of text and citation refs.
+- `backend/src/shared/citations.ts` (client-safe) finds markers `[1]`, `[1, 3]`, `[1][3]`, ignores numbers that aren't in the citation map, and returns segments of text and citation refs.
 - Answers render as Markdown (`react-markdown` + `remark-gfm`) with markers replaced by citation chips. A chip opens a popover with source title, page and excerpt, and highlights the source in the sources area.
 - When no sources are ready, the chat input is disabled and the empty state explains how to add a source.
 - Suggested questions appear as clickable chips when the chat is empty.
@@ -226,7 +200,7 @@ Error responses always have the shape `{ error: { code, message } }`.
 
 ## 11. Errors
 
-`src/lib/errors.ts` defines `AppError(code)` and one user-facing message per code. Handlers catch everything, map unknown errors to `INTERNAL`, log details server-side, and return only code + message.
+`backend/src/errors.ts` defines `AppError(code)`; codes and one user-facing message per code live in `backend/src/shared/error-codes.ts`. Frontend handlers and actions catch everything, map unknown errors to `INTERNAL`, log details server-side, and return only code + message.
 
 | Code | HTTP | Message shown to the user |
 |---|---|---|
@@ -245,7 +219,7 @@ Gemini 429s and our own throttles both map to `RATE_LIMITED`. Set `maxRetries: 2
 
 ## 12. Prompts (starting drafts)
 
-Final versions live in `src/lib/ai/prompts.ts`. Adjust wording there, not here, but keep the rules.
+Final versions live in `backend/src/ai/prompts.ts`. Adjust wording there, not here, but keep the rules.
 
 **Chat system prompt**
 ```
