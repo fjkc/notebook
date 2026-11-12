@@ -42,6 +42,10 @@ def segment_ok(argv):
         return "environment assignments are not allowed"
     cmd, args = argv[0], argv[1:]
     if cmd == "git":
+        # Global options that only change where or how git reads: -C <dir>, --no-pager.
+        # (-c stays forbidden: config values like core.pager can run commands.)
+        while args[:1] == ["--no-pager"] or args[:1] == ["-C"] and len(args) > 1:
+            args = args[1:] if args[0] == "--no-pager" else args[2:]
         if not args or args[0] not in GIT_SUB:
             return "git: only diff, show, log, ls-files, grep, rev-parse, status, blame, cat-file"
         if any(a.startswith(GIT_BAD_FLAGS) for a in args):
