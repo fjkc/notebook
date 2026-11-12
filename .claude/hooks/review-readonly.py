@@ -8,7 +8,8 @@ Bash allows only:
 Every flag must match an allowed token exactly: no flag groups, no attached values,
 no abbreviations. Anything the tokenizer doesn't fully understand is denied.
 
-Read / Grep / Glob: only paths inside the project, never local env files.
+Read / Grep / Glob: only paths inside the project, never local env files (any letter case,
+also checked on the symlink-resolved path). Grep's `glob` parameter is denied.
 
 Default deny. Fails closed: errors deny here, and the agent frontmatter adds `|| exit 2`
 so even a crash of this script blocks the tool call.
@@ -24,7 +25,8 @@ class Deny(Exception):
 
 
 PROJECT = os.path.realpath(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
-ENV_FILE = re.compile(r"(^|[/:=])\.env(?!\.example$)[\w.-]*$|(^|[/:=])\.env(?!\.example\b)[\w.-]*[/:]")
+# Case-insensitive: macOS file systems are, so `.ENV.local` opens `.env.local`.
+ENV_FILE = re.compile(r"(^|[/:=])\.env(?!\.example$)[\w.-]*$|(^|[/:=])\.env(?!\.example\b)[\w.-]*[/:]", re.IGNORECASE)
 NUM = r"\d{1,6}"
 
 # ---------- tokenizer ----------
@@ -200,8 +202,8 @@ def check_path(value, label):
         return
     if ENV_FILE.search(value):
         raise Deny("local env files (.env*) are off limits")
-    if label == "pattern":  # glob pattern: no env files, no absolute or parent-escaping patterns
-        if ".env" in value and not value.endswith(".env.example"):
+    if label == "pattern":  # Glob tool pattern (lists names only): no env files, no escaping the project
+        if ".env" in value.lower() and not value.lower().endswith(".env.example"):
             raise Deny("local env files (.env*) are off limits")
         if value.startswith(("/", "~")) or ".." in value.split("/"):
             raise Deny("glob patterns must stay inside the project")
@@ -209,6 +211,8 @@ def check_path(value, label):
     full = os.path.realpath(os.path.join(PROJECT, os.path.expanduser(value)))
     if full != PROJECT and not full.startswith(PROJECT + os.sep):
         raise Deny("only files inside the project are readable")
+    if ENV_FILE.search(full):  # a harmless-looking symlink may point at an env file
+        raise Deny("local env files (.env*) are off limits")
 
 
 def check(tool, ti):
@@ -217,7 +221,8 @@ def check(tool, ti):
     elif tool in ("Read", "Grep", "Glob"):
         check_path(ti.get("file_path"), "path")
         check_path(ti.get("path"), "path")
-        check_path(ti.get("glob"), "pattern")
+        if ti.get("glob"):  # ripgrep globs override ignore rules and are easy to disguise
+            raise Deny("Grep's glob parameter is not allowed; narrow with path instead")
         if tool == "Glob":
             check_path(ti.get("pattern"), "pattern")
     else:

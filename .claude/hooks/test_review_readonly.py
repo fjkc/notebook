@@ -1,5 +1,5 @@
 """Tests for review-readonly.py. Run: python3 .claude/hooks/test_review_readonly.py"""
-import importlib.util, json, os, subprocess, sys
+import importlib.util, json, os, shutil, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.dirname(os.path.dirname(HERE))
@@ -7,6 +7,12 @@ os.environ["CLAUDE_PROJECT_DIR"] = PROJECT
 HOOK = os.path.join(HERE, "review-readonly.py")
 spec = importlib.util.spec_from_file_location("ro", HOOK)
 ro = importlib.util.module_from_spec(spec); spec.loader.exec_module(ro)
+
+
+# a harmless-looking symlink inside the project that points at an env file
+LINKDIR = tempfile.mkdtemp(dir=HERE)
+SYMLINK = os.path.join(LINKDIR, "notes.md")
+os.symlink(os.path.join(PROJECT, "frontend", ".env.local"), SYMLINK)
 
 
 def verdict(tool, ti):
@@ -126,6 +132,13 @@ tool_deny = [
     ("Grep", {"pattern": "KEY", "path": "/Users"}),
     ("Grep", {"pattern": "KEY", "glob": ".env*"}),
     ("Glob", {"pattern": "**/.env*"}),
+    ("Read", {"file_path": PROJECT + "/frontend/.ENV.local"}),
+    ("Read", {"file_path": "frontend/.Env.local"}),
+    ("Grep", {"pattern": "KEY", "path": "frontend/.ENV.local"}),
+    ("Grep", {"pattern": "KEY", "path": "frontend", "glob": "*.local"}),
+    ("Grep", {"pattern": "KEY", "glob": "*.md"}),
+    ("Glob", {"pattern": "**/.ENV*"}),
+    ("Read", {"file_path": SYMLINK}),
     ("Glob", {"pattern": "/etc/*"}),
     ("Glob", {"pattern": "../*"}),
     ("Write", {"file_path": PROJECT + "/x"}),
@@ -160,6 +173,7 @@ if out.strip(): fails += 1; print("FAIL: allowed command printed output")
 rc = subprocess.run(["sh", "-c", 'python3 -c "raise SystemExit(1)" || exit 2'], capture_output=True).returncode
 if rc != 2: fails += 1; print("FAIL: crash wrapper did not exit 2")
 
+shutil.rmtree(LINKDIR)
 total = len(allow) + len(deny) + len(tool_deny) + len(tool_allow) + 3
 print(f"{total} cases ({len(allow)}+{len(tool_allow)} allow, {len(deny)}+{len(tool_deny)} deny, 3 end-to-end), failures: {fails}")
 sys.exit(1 if fails else 0)
