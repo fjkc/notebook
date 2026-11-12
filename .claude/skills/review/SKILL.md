@@ -10,6 +10,17 @@ You are the dispatcher. The agents review, and you collect, merge and post. The 
 
 Arguments: `$ARGUMENTS`
 
+## 0. Guard: the review tooling must be trusted
+
+The agents, their hook and the helper scripts are loaded from the **local checkout**. If it contains a PR's changes to them, that PR would review itself with its own rules. So before anything else:
+```bash
+git fetch origin "<base>"
+git diff --quiet "origin/<base>" -- .claude/agents .claude/hooks .claude/skills/review
+```
+- **Exit 0** (the tooling equals the base branch): continue.
+- **Otherwise: stop.** Tell the user the local review tooling differs from `<base>`, usually because a PR that changes it is checked out, and ask them to switch to `<base>` or explicitly confirm.
+- **Bootstrap exception:** if `<base>` has no `.claude/hooks/review-readonly.py` yet (the PR that introduces the tooling), continue, and say so in the summary.
+
 ## 1. Resolve the PR
 
 - PR number: from the arguments, or else the PR of the current branch (`gh pr view --json number`). If there's none, ask which PR.
@@ -30,6 +41,9 @@ Arguments: `$ARGUMENTS`
   - If the user says which kind it is, that wins.
 - `local_head_matches`: `true` only if `git rev-parse HEAD` equals `headRefOid` and `git status --porcelain` is empty.
 - Commentable lines: `gh pr diff <n> | python3 -I .claude/skills/review/diff_lines.py`. Keep the output for step 4.
+- **Round and `since_sha`:** look for earlier reviews of this PR with the marker `<!-- review-round: N head: <sha> -->`, for example with `gh pr view <n> --json reviews`.
+  - None found: `round: 1`, `since_sha: none`.
+  - Otherwise take the highest N: `round: N+1` and `since_sha` = its head. If that sha is no longer an ancestor of the new head (`git merge-base --is-ancestor`, e.g. after a force-push), do a full review as `since_sha: none`, but keep counting rounds.
 
 ## 2. Decide on security-audit up front
 
@@ -62,6 +76,8 @@ kind: <code|spec>
 spec: <path or none>
 subtask: <id or none>
 local_head_matches: <true|false>
+round: <N>
+since_sha: <sha or none>
 changed_files:
 - <path>
 Follow .claude/skills/review/protocol.md.
@@ -69,7 +85,7 @@ Follow .claude/skills/review/protocol.md.
 
 Then tell the user in one or two lines which agents are running, and why security-audit is or isn't among them. End your turn. Don't wait idle, and don't guess results.
 
-**While agents run, leave the working tree alone.** Don't switch branches, pull, edit or commit until all agents have reported. Some agents read and test the local checkout. If the user asks for something that changes files, say the review is still running and do it once the review is posted, or offer to stop the review.
+**While agents run, leave the working tree alone.** Don't switch branches, pull, edit or commit until all agents have reported. Agents may read the local checkout when it matches the PR's commit. If the user asks for something that changes files, say the review is still running and do it once the review is posted, or offer to stop the review.
 
 When the reviewer reports (code PRs): if its `security_triage.needed` is `true`, security-audit isn't running yet, and `--no-security` wasn't given, launch security-audit now with the same input block and tell the user. Post only once **all** launched agents have reported.
 
@@ -112,7 +128,9 @@ Summary body: emoji headlines, bullets, no tables.
 ## 🔁 Changes needed · 1 blocker · 2 should fix · 3 nits · 5 inline comments
 <!-- or: ## ✅ Ready to merge · …   or: ## ⚠️ Review incomplete · bugfinder returned no result · … -->
 
-Reviewed by reviewer, bugfinder, security-audit at <short sha>.
+Reviewed by reviewer, bugfinder, security-audit at <short sha> · round <N> (re-reviews: commits since <short since_sha>).
+
+<!-- review-round: <N> head: <headRefOid> -->
 
 ## 🎯 Spec and acceptance criteria
 - ✅ / ❌ / 👀 <criterion>: <evidence>     (👀 = needs manual check)
@@ -130,6 +148,7 @@ Reviewed by reviewer, bugfinder, security-audit at <short sha>.
 ```
 
 - Leave out "General findings" when it would be empty, and write "No findings" where a whole review has none.
+- **Always include the `review-round` marker.** The next `/review` uses it to find the round and the commits to focus on.
 - **Spec PRs** use the same layout with two changes:
   - Replace "🎯 Spec and acceptance criteria" with `## 📐 Spec readiness`: ready or needs work, and the `readiness_reason`.
   - Add `## ❓ Questions for the author` with the spec-reviewer's `questions`, as a numbered list (omit it if empty).
@@ -148,4 +167,4 @@ Reviewed by reviewer, bugfinder, security-audit at <short sha>.
 
 ## 6. Report to the user
 
-Three to five lines: the verdict, the counts, whether security ran, the review link. Then stop. Fixing findings is a separate request.
+Three to five lines: the verdict, the counts, whether security ran, the review link. Then stop. Fixing findings is a separate request, and it follows the loop gate in `WORKFLOW.md` §5.

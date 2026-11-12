@@ -8,7 +8,7 @@ hooks:
     - matcher: "Bash|Read|Grep|Glob"
       hooks:
         - type: command
-          command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/review-readonly.py"'
+          command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/review-readonly.py" || exit 2'
 color: red
 ---
 
@@ -48,7 +48,7 @@ The app is public, has no login, and identifies owners by an anonymous cookie. I
   - Migrations don't open tables or buckets.
   - `vercel.json` and headers (CSP, framing, content-type sniffing) are sensible where relevant.
 - **Dependencies and CI:**
-  - New packages are on the approved list, are maintained, and have no known vulnerabilities (`npm audit`).
+  - New packages are on the approved list and are maintained. Known vulnerabilities come from CI (`gh pr checks`), because agents don't run npm.
   - Lockfile changes match `package.json`.
   - GitHub Actions use least-privilege `permissions`, pin actions, and never expose secrets to PRs from forks.
 - **Agent and tooling config (`.claude/**`):**

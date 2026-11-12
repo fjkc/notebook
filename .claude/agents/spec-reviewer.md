@@ -8,7 +8,7 @@ hooks:
     - matcher: "Bash|Read|Grep|Glob"
       hooks:
         - type: command
-          command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/review-readonly.py"'
+          command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/review-readonly.py" || exit 2'
 color: purple
 ---
 
