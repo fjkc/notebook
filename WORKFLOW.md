@@ -33,7 +33,7 @@ There are no status fields to keep in sync. To see where things stand, look at t
 2. Claude reads the relevant section of `docs/ARCHITECTURE.md` and the affected folder READMEs.
 3. Claude branches `docs/NB-XXX-spec` from an up-to-date `main` and writes the spec. Open questions go into the spec's "Open questions" section.
 4. Claude opens a **spec PR** (same PR rules as in section 4, with "Changes" describing what the spec proposes) and reports the link.
-5. The user, and any review agents, comment on the PR. Claude answers by pushing fix commits to the same branch.
+5. The user comments on the PR, and `/review` adds the spec-reviewer's findings. Claude answers by pushing fix commits to the same branch.
 6. **The user merges the spec PR. That is the approval.** "Open questions" must be empty by then.
 
 ## 3. Implementing a subtask
@@ -117,9 +117,11 @@ Two to four sentences: what this PR does and why, in plain language.
 Triggered by `/review [PR number] [--security | --no-security]`, or by asking "review PR 5". The steps are in `.claude/skills/review/SKILL.md`.
 
 - **Who reviews:**
-  - `reviewer` always runs: spec and acceptance criteria, correctness, simplification, architecture, integration and deployment, project rules, and a security triage.
-  - `bugfinder` always runs: races, edge cases, async and error handling, framework pitfalls.
-  - `security-audit` runs when the reviewer recommends it, when you pass `--security`, or when the PR touches sensitive paths. `--no-security` skips it.
+  - **Spec PRs** (spec ID without subtask in the title, Markdown only): `spec-reviewer` alone, plus `security-audit` with `--security`. It reads the spec as a new developer or agent session would, and checks logic, gaps, hidden open questions, missing definitions and decisions, testability and the subtask cuts.
+  - **Code PRs:**
+    - `reviewer` always runs: spec and acceptance criteria, correctness, simplification, architecture, integration and deployment, project rules, and a security triage.
+    - `bugfinder` always runs: races, edge cases, async and error handling, framework pitfalls.
+    - `security-audit` runs when the reviewer recommends it, when you pass `--security`, or when the PR touches sensitive paths. `--no-security` skips it.
   - Agent definitions are in `.claude/agents/`, and their shared rules in `.claude/skills/review/protocol.md`.
 - **How it runs:**
   - The agents start fresh, with no context from the conversation that wrote the code. They get only the facts and treat the PR description as claims to verify.

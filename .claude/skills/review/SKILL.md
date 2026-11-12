@@ -1,6 +1,6 @@
 ---
 name: review
-description: Review a pull request in this repo with the reviewer, bugfinder and optional security-audit agents, running in the background, and post the result as one GitHub review with inline comments and a summary. Use when the user asks to review a PR or MR, e.g. "/review 5", "review PR 5", "review this PR", "let the agents review the MR", "run a security review on PR 7". Only when the user asks for a review; never start one on your own initiative, e.g. not automatically after opening a PR.
+description: Review a pull request in this repo with the reviewer, bugfinder and optional security-audit agents (or the spec-reviewer for spec PRs), running in the background, and post the result as one GitHub review with inline comments and a summary. Use when the user asks to review a PR or MR, e.g. "/review 5", "review PR 5", "review this PR", "let the agents review the MR", "run a security review on PR 7". Only when the user asks for a review; never start one on your own initiative, e.g. not automatically after opening a PR.
 argument-hint: "[PR number] [--security | --no-security]"
 ---
 
@@ -24,12 +24,16 @@ Arguments: `$ARGUMENTS`
   - The subtask ID comes from the title (`feat(NB-003.2): …` gives `NB-003.2`).
   - The spec path comes from the spec link in the body (`specs/NB-003-….md`).
   - If either is missing, use `none`. The reviewer then flags the missing link.
+- **Kind of PR:**
+  - `spec` if the title's scope is a spec ID **without** a subtask number (`docs(NB-002): …`), **and** every changed file is Markdown, **and** at least one is `specs/NB-*.md`. Spec PRs then use `subtask: none`.
+  - `code` otherwise.
+  - If the user says which kind it is, that wins.
 - `local_head_matches`: `true` only if `git rev-parse HEAD` equals `headRefOid` and `git status --porcelain` is empty.
 - Commentable lines: `gh pr diff <n> | python3 -I .claude/skills/review/diff_lines.py`. Keep the output for step 4.
 
 ## 2. Decide on security-audit up front
 
-Run it from the start if `--security` is set, or if any changed file matches:
+For **spec PRs**, run security-audit only if `--security` is set. The spec-reviewer covers the security implications of the design. For **code PRs**, run it from the start if `--security` is set, or if any changed file matches:
 - `infra/**`
 - `frontend/src/app/api/**`, `frontend/src/proxy.ts`, `frontend/src/middleware.ts`, `frontend/src/lib/owner.ts`, `frontend/src/lib/supabase/**`, `frontend/next.config.*`, `frontend/vercel.json`
 - `backend/src/db/**`, `backend/src/services/**`, `backend/src/supabase.ts`, `backend/src/env.ts`, `backend/src/rag/url-guard.ts`, `backend/src/rag/extract.ts`, `backend/src/ai/prompts.ts`
@@ -39,7 +43,9 @@ Remember the trigger (user, paths, or none yet) for the summary.
 
 ## 3. Launch the agents in the background
 
-In **one** message, launch `reviewer`, `bugfinder` and, if triggered, `security-audit` with the Agent tool, in the background.
+In **one** message, launch these agents with the Agent tool, in the background:
+- **Code PR:** `reviewer` and `bugfinder`, plus `security-audit` if triggered.
+- **Spec PR:** `spec-reviewer` only, plus `security-audit` if `--security` is set. There's no code for the reviewer to check against a spec, and no code for the bugfinder.
 
 **Fresh eyes:** each agent starts without any context from this conversation.
 - Launch them by their agent type. Never use a fork of this conversation.
@@ -52,6 +58,7 @@ Review PR #<n> (<url>).
 pr: <n>
 head_sha: <headRefOid>
 base: <baseRefName>
+kind: <code|spec>
 spec: <path or none>
 subtask: <id or none>
 local_head_matches: <true|false>
@@ -64,7 +71,7 @@ Then tell the user in one or two lines which agents are running, and why securit
 
 **While agents run, leave the working tree alone.** Don't switch branches, pull, edit or commit until all agents have reported. Some agents read and test the local checkout. If the user asks for something that changes files, say the review is still running and do it once the review is posted, or offer to stop the review.
 
-When the reviewer reports: if its `security_triage.needed` is `true`, security-audit isn't running yet, and `--no-security` wasn't given, launch security-audit now with the same input block and tell the user. Post only once **all** launched agents have reported.
+When the reviewer reports (code PRs): if its `security_triage.needed` is `true`, security-audit isn't running yet, and `--no-security` wasn't given, launch security-audit now with the same input block and tell the user. Post only once **all** launched agents have reported.
 
 ## 4. Merge the findings
 
@@ -72,12 +79,13 @@ When the reviewer reports: if its `security_triage.needed` is `true`, security-a
 - **If an agent returned no valid block,** the review is incomplete:
   - The verdict is ⚠️ **Review incomplete**, never ✅. Name the missing agent in the summary and continue with the others.
   - If the **reviewer** is missing: mark every acceptance criterion 👀. Its security triage is also missing, so launch security-audit before posting unless it already ran or `--no-security` was given. Say so in the summary.
+  - If the **spec-reviewer** is missing, there is no review of the spec at all. Post only the ⚠️ verdict and the reason.
 - **De-duplicate:** findings with the same file, overlapping lines and the same problem become one. Keep the highest severity and list all agents that found it.
 - **Place each finding:**
   - **Inline** if `general` is `false` and `start_line..end_line` lies inside one range from step 1 for that path.
   - **Summary** otherwise (general, or outside the diff), with `path:start_line`.
 - **Verdict**, first match wins:
-  - 🔁 **Changes needed:** any blocker, or an acceptance criterion "not met".
+  - 🔁 **Changes needed:** any blocker, an acceptance criterion "not met", or (spec PRs) `readiness` is "needs work".
   - ⚠️ **Review incomplete:** an agent result is missing.
   - ✅ **Ready to merge:** otherwise.
 
@@ -122,6 +130,10 @@ Reviewed by reviewer, bugfinder, security-audit at <short sha>.
 ```
 
 - Leave out "General findings" when it would be empty, and write "No findings" where a whole review has none.
+- **Spec PRs** use the same layout with two changes:
+  - Replace "🎯 Spec and acceptance criteria" with `## 📐 Spec readiness`: ready or needs work, and the `readiness_reason`.
+  - Add `## ❓ Questions for the author` with the spec-reviewer's `questions`, as a numbered list (omit it if empty).
+  - The 🛡️ Security section says whether security-audit ran (`--security`) or that the spec-reviewer covered the design's security implications.
 - Post it:
   1. Write the payload as JSON with the Write tool into your session's scratchpad directory, never `/tmp` or the repo. Build it with a JSON serializer (e.g. a short Python script in the scratchpad), because comment bodies contain quotes, backticks and newlines.
      ```json

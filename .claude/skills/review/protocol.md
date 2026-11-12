@@ -12,7 +12,8 @@ You start with no context from the author or from earlier reviews, on purpose. F
 
 - `pr`: PR number. `url`: PR link.
 - `head_sha`: the commit under review. `base`: the base branch (usually `main`).
-- `spec`: path of the spec file, or `none`. `subtask`: e.g. `NB-003.2`, or `none`.
+- `kind`: `code` (a PR that implements a subtask) or `spec` (a PR that proposes or changes a spec, no code).
+- `spec`: path of the spec file, or `none`. `subtask`: e.g. `NB-003.2`, or `none` (always `none` for spec PRs).
 - `changed_files`: the files the PR changes.
 - `local_head_matches`: `true` if the local checkout was exactly `head_sha` with a clean tree **when you were launched**.
 
@@ -58,7 +59,7 @@ Keep any prose before the JSON short. Your answer **must end** with exactly one 
 
 ```json
 {
-  "agent": "reviewer | bugfinder | security-audit",
+  "agent": "reviewer | bugfinder | security-audit | spec-reviewer",
   "summary": "Two sentences: what you checked and the overall picture.",
   "findings": [
     {
@@ -78,4 +79,4 @@ Keep any prose before the JSON short. Your answer **must end** with exactly one 
 }
 ```
 
-The `reviewer` adds three fields: `acceptance`, `security_triage` and `simplification` (see its instructions).
+The `reviewer` adds `acceptance`, `security_triage` and `simplification`. The `spec-reviewer` adds `readiness`, `readiness_reason` and `questions`. See their instructions.

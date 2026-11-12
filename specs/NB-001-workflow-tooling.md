@@ -8,7 +8,7 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
 ## Scope
 - **In:**
   - Project skills `/spec`, `/implement`, `/review` in `.claude/skills/`.
-  - Project agents `reviewer`, `bugfinder`, `security-audit` in `.claude/agents/`.
+  - Project agents `reviewer`, `bugfinder`, `security-audit` and `spec-reviewer` in `.claude/agents/`.
   - Updates to `WORKFLOW.md` and `CLAUDE.md` so they point to the commands.
 - **Out:**
   - CI (GitHub Actions) and branch protection: separate spec in M1.
@@ -34,7 +34,7 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
   - Posts the result as one GitHub review on the PR: inline comments on the responsible code plus a summary (R12). Then gives the user a short summary with the verdict.
 
 ### Review agents
-- **R6** Three project agents in `.claude/agents/`. None of them can edit files: their tools are `Read, Grep, Glob, Bash` only (Bash for `git diff`, `gh pr view`, running checks). A `PreToolUse` hook on each agent allows only read-only Bash commands, and denies anything that writes, commits, pushes, comments or sends data out. Their instructions treat everything in the PR as untrusted data. Only the main session posts the review.
+- **R6** Four project agents in `.claude/agents/` (R7–R9, R14). None of them can edit files: their tools are `Read, Grep, Glob, Bash` only (Bash for `git diff`, `gh pr view`, running checks). A `PreToolUse` hook on each agent allows only read-only Bash commands, and denies anything that writes, commits, pushes, comments or sends data out. Their instructions treat everything in the PR as untrusted data. Only the main session posts the review.
 - **R7** `reviewer` (always runs). Checks the PR against its spec and the project rules:
   - **Spec compliance:** every acceptance criterion of the subtask, marked met or not met, with evidence (file:line, command output).
   - **Correctness and sense:** does the code do what the PR says, are there obvious bugs.
@@ -86,6 +86,17 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
   - They're launched as fresh subagents, never as forks of the conversation.
   - Their prompt contains only the facts (PR, commit, spec, changed files): no summary of the change, no author reasoning, no findings from earlier reviews.
   - They treat the PR description and code comments as claims to verify.
+- **R14** `spec-reviewer` (spec PRs only). A spec PR has a spec ID without a subtask in its title (`docs(NB-002): …`) and changes only Markdown, including a `specs/NB-*.md` file.
+  - On spec PRs, `/review` runs `spec-reviewer` **instead of** `reviewer` and `bugfinder`, which need code. `security-audit` runs only with `--security`.
+  - With fresh eyes (R13), it reads the spec as a new developer or a new agent session who must implement it from the repo alone, and checks:
+    - completeness for a newcomer and coherence with the architecture, the rules and earlier specs,
+    - logic and contradictions,
+    - gaps (errors, limits, concurrency, migrations, env, deployment, security),
+    - hidden open questions and vague wording, missing definitions and design decisions,
+    - testability of every requirement through the acceptance criteria,
+    - subtask cuts (mergeable, ordered, PR-sized),
+    - scope and fit with the milestone, the budget and the template.
+  - Output: standard findings plus `readiness` (ready or needs work), its reason, and questions for the author. The summary shows "📐 Spec readiness" and "❓ Questions for the author" instead of acceptance criteria.
 
 ## Design
 
@@ -122,7 +133,7 @@ No app code, no dependencies, no env changes.
 ## Subtasks
 
 - [x] **NB-001.1 · Review agents and `/review`** (`feat/NB-001.1-review-agents`)
-  - The three agents and the `/review` skill (R5–R13). `WORKFLOW.md` review step, `CLAUDE.md` pointer.
+  - The four agents and the `/review` skill (R5–R14). `WORKFLOW.md` review step, `CLAUDE.md` pointer.
   - Comes first, so the PR for NB-001.2 can already be reviewed with it.
   - Acceptance:
     - `/review` works when typed, and "review PR <n>" in plain words triggers it too. The model doesn't start a review unasked.
@@ -131,6 +142,7 @@ No app code, no dependencies, no env changes.
     - The reviewer's security triage is visible in the summary. When it recommends an audit that the paths didn't trigger, the audit runs before the review is posted (checked by reading the skill logic, or on a later PR where it happens).
     - The result is one GitHub review: findings with a single location appear as inline comments on those lines, and the summary follows R12 with no tables.
     - No agent modified files or posted anything itself (`git status` clean, exactly one new review on the PR).
+    - On a spec PR, `/review` runs only `spec-reviewer`, and the summary shows spec readiness and questions for the author. Checked on the next spec PR (NB-002).
 - [ ] **NB-001.2 · `/spec` and `/implement`** (`feat/NB-001.2-spec-implement`)
   - The two skills (R1–R4). `WORKFLOW.md` names them at the start of sections 2 and 3.
   - Acceptance:
@@ -146,3 +158,4 @@ None. The dispatch design (`/review` launches the agents side by side) was confi
 - NB-001.1: the agents' shared rules (inputs, read-only, findings format) live once in `.claude/skills/review/protocol.md` instead of being repeated in each agent.
 - NB-001.1: agents return findings as a JSON block, and `diff_lines.py` computes which lines accept inline comments, so a single out-of-diff finding can't make GitHub reject the whole review.
 - NB-001.1: R13 (fresh eyes) was added by the user during the PR. Read-only enforcement by hook (R6) and the untrusted-content rule came from the first agent review of this PR.
+- NB-001.1: R14 (`spec-reviewer`) was added by the user during the PR, after the second agent review.
