@@ -121,6 +121,6 @@ No app code, no dependencies, no env changes.
     - Proven in real use: the next spec (NB-002) is written with `/spec`, and its first subtask is built with `/implement`. Fixes found there go into a `fix` spec.
 
 ## Open questions
-- **Dispatch design:** is it OK that `/review` launches the three agents side by side, instead of one reviewer agent launching the other two (see Design for why)?
+None. The dispatch design (`/review` launches the agents side by side) was confirmed by the user on the spec PR.
 
 ## Notes
