@@ -26,10 +26,11 @@ def parse_path(raw):
 ranges = {}
 path = None
 old_left = new_left = 0  # lines left in the current hunk; headers only count outside hunks
-for line in sys.stdin:
+for raw in sys.stdin.buffer:  # bytes, so a non-UTF-8 file in the PR can't crash the parser
+    line = raw.decode("utf-8", errors="replace")
     if old_left > 0 or new_left > 0:
         tag = line[:1]
-        if tag in (" ", ""):
+        if tag in (" ", "", "\n", "\r"):  # a context line whose trailing space was trimmed
             old_left, new_left = old_left - 1, new_left - 1
         elif tag == "-":
             old_left -= 1

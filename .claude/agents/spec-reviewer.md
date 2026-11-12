@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 model: inherit
 hooks:
   PreToolUse:
-    - matcher: "Bash"
+    - matcher: "Bash|Read|Grep|Glob"
       hooks:
         - type: command
           command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/review-readonly.py"'

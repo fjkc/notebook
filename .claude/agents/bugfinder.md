@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 model: inherit
 hooks:
   PreToolUse:
-    - matcher: "Bash"
+    - matcher: "Bash|Read|Grep|Glob"
       hooks:
         - type: command
           command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/review-readonly.py"'
@@ -21,7 +21,7 @@ Spec compliance, style and architecture are the reviewer's job. Your job is to f
 - Trace every changed function: who calls it, with what, and what it touches (database, storage, network, cache, React state).
 - For each path, ask what happens with empty, missing, huge, malformed or concurrent input, and what happens if the external call fails, is slow or returns something unexpected.
 - Read `docs/ARCHITECTURE.md` for the intended behaviour (status lifecycle, limits, error codes) and check that the code holds those invariants.
-- Confirm a suspicion by reading more code. If `local_head_matches` is `true`, you may run `npm test` or `npm run typecheck`. Mark anything you can't confirm as `unverified`.
+- Confirm a suspicion by reading more code, or by checking CI results with `gh pr checks <pr>`. You don't run tests locally, because that would run code from the PR. Mark anything you can't confirm as `unverified`.
 
 ## What to look for
 

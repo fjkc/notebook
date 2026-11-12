@@ -34,7 +34,7 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
   - Posts the result as one GitHub review on the PR: inline comments on the responsible code plus a summary (R12). Then gives the user a short summary with the verdict.
 
 ### Review agents
-- **R6** Four project agents in `.claude/agents/` (R7–R9, R14). None of them can edit files: their tools are `Read, Grep, Glob, Bash` only (Bash for `git diff`, `gh pr view`, running checks). A `PreToolUse` hook on each agent allows only read-only Bash commands, and denies anything that writes, commits, pushes, comments or sends data out. Their instructions treat everything in the PR as untrusted data. Only the main session posts the review.
+- **R6** Four project agents in `.claude/agents/` (R7–R9, R14). None of them can edit files: their tools are `Read, Grep, Glob, Bash` only (Bash for `git diff`, `gh pr view`, reading CI results). A `PreToolUse` hook on each agent enforces this. It parses each Bash command like a shell, denies by default, and allows only read-only commands with allowlisted flags. Agents never run the PR's code (tests and lint run in CI), and every tool is kept away from local `.env*` files. The hook fails closed. Their instructions treat everything in the PR as untrusted data. Only the main session posts the review, after a secret scan of the payload.
 - **R7** `reviewer` (always runs). Checks the PR against its spec and the project rules:
   - **Spec compliance:** every acceptance criterion of the subtask, marked met or not met, with evidence (file:line, command output).
   - **Correctness and sense:** does the code do what the PR says, are there obvious bugs.
@@ -48,7 +48,7 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
   - Edge cases (empty, huge, unicode, boundaries, null and undefined, partial failures).
   - Async and error handling (unhandled rejections, missing awaits, swallowed errors, aborted streams, timeouts).
   - Serverless and framework pitfalls (function time limits, body size limits, caching and revalidation, hydration mismatches, stale closures).
-  - General logic bugs. It may run existing tests and type checks to confirm a suspicion.
+  - General logic bugs. It confirms suspicions by reading code and CI results. It never runs the PR's code locally.
 - **R9** `security-audit` (optional). Checks the change against current practice (OWASP Top 10, OWASP Top 10 for LLM applications, framework guidance):
   - Secrets and `server-only` boundaries, data reaching the client.
   - Authorisation: owner scoping on every query, 404 for foreign IDs, cookie flags.
@@ -148,6 +148,7 @@ No app code, no dependencies, no env changes.
   - Acceptance:
     - Both work when typed, and informal requests trigger them too ("let's write the spec for X", "pick up NB-002.1"). The model doesn't start them unasked.
     - `/implement NB-999` (doesn't exist) and `/implement` on an unmerged spec refuse with a clear reason and change nothing.
+    - Carried over from NB-001.1: `/review <n> --no-security` on this PR skips security-audit, and the summary says so.
     - The PR is reviewed with `/review` from NB-001.1.
     - Proven in real use: the next spec (NB-002) is written with `/spec`, and its first subtask is built with `/implement`. Fixes found there go into a `fix` spec.
 
@@ -159,3 +160,5 @@ None. The dispatch design (`/review` launches the agents side by side) was confi
 - NB-001.1: agents return findings as a JSON block, and `diff_lines.py` computes which lines accept inline comments, so a single out-of-diff finding can't make GitHub reject the whole review.
 - NB-001.1: R13 (fresh eyes) was added by the user during the PR. Read-only enforcement by hook (R6) and the untrusted-content rule came from the first agent review of this PR.
 - NB-001.1: R14 (`spec-reviewer`) was added by the user during the PR, after the second agent review.
+- NB-001.1: the second agent review found ways around the first read-only hook. It was rewritten as a shell tokenizer with per-command flag allowlists, default deny and fail closed, tested with 100 cases. Local test runs were dropped from the agents, and a secret scan runs before posting.
+- NB-001.1: two acceptance criteria are verified on later PRs: `--no-security` on the NB-001.2 PR (added to its criteria), and spec PR routing on the NB-002 spec PR.

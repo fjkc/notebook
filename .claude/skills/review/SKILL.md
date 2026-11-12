@@ -142,8 +142,9 @@ Reviewed by reviewer, bugfinder, security-audit at <short sha>.
                        "start_line": <start_line>, "start_side": "RIGHT", "body": "…" } ] }
      ```
      Omit `start_line` and `start_side` when `start_line == end_line`.
-  2. Send it: `gh api --method POST repos/{owner}/{repo}/pulls/<n>/reviews --input <file>`, then delete the file.
-  3. If GitHub rejects it (422), it usually doesn't say which comment failed. Move **all** inline comments into the summary (with `path:line`) and post once more. Never post a second review on top of a successful one.
+  2. **Secret scan:** run `python3 -I .claude/skills/review/secret_scan.py <file>`. If it doesn't exit 0, **don't post**: delete the file and tell the user what was found (it's redacted). A secret in a review would be public.
+  3. Send it: `gh api --method POST repos/{owner}/{repo}/pulls/<n>/reviews --input <file>`, then delete the file.
+  4. If GitHub rejects it (422), it usually doesn't say which comment failed. Move **all** inline comments into the summary (with `path:line`) and post once more. Never post a second review on top of a successful one.
 
 ## 6. Report to the user
 
