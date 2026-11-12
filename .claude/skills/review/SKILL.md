@@ -12,12 +12,14 @@ Arguments: `$ARGUMENTS`
 
 ## 0. Guard: the review tooling must be trusted
 
-The agents, their hook and the helper scripts are loaded from the **local checkout**. If it contains a PR's changes to them, that PR would review itself with its own rules. So before anything else:
+The agents, their hook, the helper scripts, the project settings and `CLAUDE.md` (which every agent loads as instructions) come from the **local checkout**. If it contains a PR's changes to them, that PR would review itself with its own rules. So before anything else:
 ```bash
+gh pr view <n> --json baseRefName          # <base>; <n> as in step 1
 git fetch origin "<base>"
-git diff --quiet "origin/<base>" -- .claude/agents .claude/hooks .claude/skills/review
+git diff --quiet "origin/<base>" -- .claude CLAUDE.md
+git status --porcelain -- .claude CLAUDE.md   # must print nothing (catches untracked files)
 ```
-- **Exit 0** (the tooling equals the base branch): continue.
+- **Both pass** (the tooling equals the base branch, nothing untracked): continue.
 - **Otherwise: stop.** Tell the user the local review tooling differs from `<base>`, usually because a PR that changes it is checked out, and ask them to switch to `<base>` or explicitly confirm.
 - **Bootstrap exception:** if `<base>` has no `.claude/hooks/review-readonly.py` yet (the PR that introduces the tooling), continue, and say so in the summary.
 
@@ -42,8 +44,9 @@ git diff --quiet "origin/<base>" -- .claude/agents .claude/hooks .claude/skills/
 - `local_head_matches`: `true` only if `git rev-parse HEAD` equals `headRefOid` and `git status --porcelain` is empty.
 - Commentable lines: `gh pr diff <n> | python3 -I .claude/skills/review/diff_lines.py`. Keep the output for step 4.
 - **Round and `since_sha`:** look for earlier reviews of this PR with the marker `<!-- review-round: N head: <sha> -->`, for example with `gh pr view <n> --json reviews`.
+  - Count only reviews whose author is the authenticated `gh` user (`gh api user --jq .login`), and only a marker on a line of its own, as written in step 5. A marker quoted inside a finding or posted by someone else doesn't count.
   - None found: `round: 1`, `since_sha: none`.
-  - Otherwise take the highest N: `round: N+1` and `since_sha` = its head. If that sha is no longer an ancestor of the new head (`git merge-base --is-ancestor`, e.g. after a force-push), do a full review as `since_sha: none`, but keep counting rounds.
+  - Otherwise take the highest N: `round: N+1` and `since_sha` = its head. If `git merge-base --is-ancestor <since_sha> <headRefOid>` exits with anything but 0 (not an ancestor after a force-push, or the sha is unknown locally), do a full review as `since_sha: none`, but keep counting rounds.
 
 ## 2. Decide on security-audit up front
 

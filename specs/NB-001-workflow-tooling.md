@@ -34,7 +34,7 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
   - Posts the result as one GitHub review on the PR: inline comments on the responsible code plus a summary (R12). Then gives the user a short summary with the verdict.
 
 ### Review agents
-- **R6** Four project agents in `.claude/agents/` (R7–R9, R14). None of them can edit files: their tools are `Read, Grep, Glob, Bash` only (Bash for `git diff`, `gh pr view`, reading CI results). A `PreToolUse` hook on each agent enforces a **small tool surface**: Bash may run only `git diff/show/log/grep/rev-parse/status/ls-files` with exact per-command flag lists, and `gh pr view/diff/checks <n>`, optionally piped into `head`/`tail -n N`. Read, Grep and Glob work only inside the project. Agents never run the PR's code (tests and lint run in CI), and no tool may touch local `.env*` files. The hook denies by default and fails closed (`|| exit 2`). `/review` refuses to run when the local review tooling differs from the base branch, so a checked-out PR can't review itself with its own rules. Their instructions treat everything in the PR as untrusted data. Only the main session posts the review, after a secret scan of the payload.
+- **R6** Four project agents in `.claude/agents/` (R7–R9, R14). None of them can edit files: their tools are `Read, Grep, Glob, Bash` only (Bash for `git diff`, `gh pr view`, reading CI results). A `PreToolUse` hook on each agent enforces a **small tool surface**: Bash may run only `git diff/show/log/grep/rev-parse/status/ls-files` with exact per-command flag lists, and `gh pr view/diff/checks <n>`, optionally piped into `head`/`tail -n N`. Read, Grep and Glob work only inside the project. Agents never run the PR's code (tests and lint run in CI), and no tool may touch local `.env*` files. The hook denies by default and fails closed (`|| exit 2`). `/review` refuses to run when `.claude/` or `CLAUDE.md` in the local checkout differ from the base branch or contain untracked files, so a checked-out PR can't review itself with its own rules. Their instructions treat everything in the PR as untrusted data. Only the main session posts the review, after a secret scan of the payload.
 - **R7** `reviewer` (always runs). Checks the PR against its spec and the project rules:
   - **Spec compliance:** every acceptance criterion of the subtask, marked met or not met, with evidence (file:line, command output).
   - **Correctness and sense:** does the code do what the PR says, are there obvious bugs.
@@ -76,7 +76,7 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
   - **Inline comments:** every finding with a single location becomes an inline comment on those lines. It starts with the severity and the agent (e.g. `🟠 **Should fix** · bugfinder`), then what, why, and the fix (as a GitHub suggestion block when it's a small, exact change).
   - **Lines outside the diff:** GitHub only accepts inline comments on lines in the diff. Findings in unchanged code go into the summary with `file:line`.
   - **Summary** (the review body), in the PR description style (emoji headlines, bullets, no tables):
-    - verdict line: ✅ ready to merge, or 🔁 changes needed, with the count per severity and "N inline comments",
+    - verdict line: ✅ ready to merge, 🔁 changes needed, or ⚠️ review incomplete (an agent returned no result; never ✅), with the count per severity and "N inline comments",
     - `## 🎯 Spec and acceptance criteria`: each criterion met or not met,
     - `## 🧩 General findings`: findings marked "general" or outside the diff, by severity,
     - `## 🛡️ Security`: ran or skipped, and why,
@@ -152,7 +152,7 @@ No app code, no dependencies, no env changes.
   - Acceptance:
     - `/review` works when typed, and "review PR <n>" in plain words triggers it too. The model doesn't start a review unasked.
     - Running it on this subtask's own PR launches reviewer, bugfinder and security-audit (triggered by `.claude/**`) in the background, and the conversation stays responsive.
-    - Running it with `--no-security` skips security-audit, and the summary says so.
+    - Running it with `--no-security` skips security-audit, and the summary says so. Checked on the NB-001.2 PR (carried over to its criteria).
     - The reviewer's security triage is visible in the summary. When it recommends an audit that the paths didn't trigger, the audit runs before the review is posted (checked by reading the skill logic, or on a later PR where it happens).
     - The result is one GitHub review: findings with a single location appear as inline comments on those lines, and the summary follows R12 with no tables.
     - No agent modified files or posted anything itself (`git status` clean, exactly one new review on the PR).
@@ -177,3 +177,4 @@ None. The dispatch design (`/review` launches the agents side by side) was confi
 - NB-001.1: the second agent review found ways around the first read-only hook. It was rewritten as a shell tokenizer with per-command flag allowlists, default deny and fail closed, tested with 100 cases. Local test runs were dropped from the agents, and a secret scan runs before posting.
 - NB-001.1: two acceptance criteria are verified on later PRs: `--no-security` on the NB-001.2 PR (added to its criteria), and spec PR routing on the NB-002 spec PR.
 - NB-001.1: after the third agent review, the user asked for a loop gate (R16) and incremental re-reviews (R15). The hook was narrowed to a small tool surface instead of filtering a general shell, and the tooling guard was added.
+- NB-001.1: the fourth agent review found the env-file check could be bypassed by letter case, symlinks and Grep globs; all three are now denied. The tooling guard was widened to all of `.claude/` plus `CLAUDE.md` and untracked files, and a ⚠️ "review incomplete" verdict was added to R12. Hook matcher stays `Bash|Read|Grep|Glob`: `tools:` already limits each agent to those four, and `*` risks blocking the agent's report-back tool.

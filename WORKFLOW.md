@@ -126,7 +126,7 @@ Triggered by `/review [PR number] [--security | --no-security]`, or by asking "r
 - **How it runs:**
   - The agents start fresh, with no context from the conversation that wrote the code. They get only the facts and treat the PR description as claims to verify.
   - They run in the background and in parallel. A hook limits them to a small read-only tool surface: `git` read commands, `gh pr view/diff/checks`, and reading files inside the project.
-  - `/review` refuses to run when the local review tooling differs from `main`, so a PR can't review itself with its own rules.
+  - `/review` refuses to run when `.claude/` or `CLAUDE.md` in the local checkout differ from `main` (or contain untracked files), so a PR can't review itself with its own rules.
   - Claude merges their findings and posts **one GitHub review**: inline comments on the code that causes each finding, and a summary with the verdict, the acceptance criteria and the security status.
 - **Re-reviews:**
   - Each review records its round and commit in a hidden marker.
