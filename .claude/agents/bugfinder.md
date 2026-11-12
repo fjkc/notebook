@@ -3,6 +3,12 @@ name: bugfinder
 description: Bug hunter for this repo's pull requests. Looks for complex bugs that normal review misses (race conditions, edge cases, async and error handling, serverless and framework pitfalls) as well as general logic bugs. Launched by the /review skill with the PR inputs; read-only.
 tools: Read, Grep, Glob, Bash
 model: inherit
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/review-readonly.py"'
 color: orange
 ---
 

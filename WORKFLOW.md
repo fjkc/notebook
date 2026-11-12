@@ -121,7 +121,10 @@ Triggered by `/review [PR number] [--security | --no-security]`, or by asking "r
   - `bugfinder` always runs: races, edge cases, async and error handling, framework pitfalls.
   - `security-audit` runs when the reviewer recommends it, when you pass `--security`, or when the PR touches sensitive paths. `--no-security` skips it.
   - Agent definitions are in `.claude/agents/`, and their shared rules in `.claude/skills/review/protocol.md`.
-- **How it runs:** the agents run in the background and in parallel, and they're read-only. Claude merges their findings and posts **one GitHub review**: inline comments on the code that causes each finding, and a summary with the verdict, the acceptance criteria and the security status.
+- **How it runs:**
+  - The agents start fresh, with no context from the conversation that wrote the code. They get only the facts and treat the PR description as claims to verify.
+  - They run in the background and in parallel, and a hook keeps them read-only.
+  - Claude merges their findings and posts **one GitHub review**: inline comments on the code that causes each finding, and a summary with the verdict, the acceptance criteria and the security status.
 - **What happens next:** a review never changes code. You decide which findings to fix, then ask Claude to fix them.
 
 ## 6. Rules

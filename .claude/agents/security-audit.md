@@ -3,6 +3,12 @@ name: security-audit
 description: Security auditor for this repo's pull requests. Checks changes to infra, endpoints, auth, data access, uploads, AI prompts, dependencies and CI against current security practice (OWASP Top 10, OWASP Top 10 for LLM applications, framework guidance). Launched by the /review skill when triggered; read-only.
 tools: Read, Grep, Glob, Bash
 model: inherit
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/review-readonly.py"'
 color: red
 ---
 
