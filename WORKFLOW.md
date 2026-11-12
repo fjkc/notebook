@@ -3,8 +3,8 @@
 **Spec first, then code.** Every change starts as a spec. Specs and code both reach `main` only through pull requests, which is where review, comments and approval happen. Claude Code follows this file exactly.
 
 ```
-Spec PR ──► review, comments, fixes ──► merged = approved ──► one PR per subtask ──► merged = done
-(Claude)    (user and review agents)    (user)                (Claude)               (user)
+Spec PR ──► review, comments, fixes ──► merged = approved ──► one PR per subtask ──► /review ──► fixes ──► merged = done
+(Claude)    (user and review agents)    (user)                (Claude)               (agents)    (Claude)  (user)
 ```
 
 ## Status lives in Git, nowhere else
@@ -58,7 +58,7 @@ Triggered by "implement NB-003" (take the first unticked subtask) or "implement 
    ```
 7. **Push and open the PR** (section 4), report the link, then stop. Claude never merges.
 
-After review: Claude pushes fix commits to the same branch (no force-push unless asked). After a merge, Claude switches back to `main`, pulls, and waits for the next instruction. When the last subtask of a milestone merges, Claude tells the user to check production against the milestone's "Done when".
+After review (yours, or the agents' via `/review`, see section 5): Claude fixes the findings it's asked to fix by pushing commits to the same branch (no force-push unless asked), and replies in each review thread with what changed. After a merge, Claude switches back to `main`, pulls, and waits for the next instruction. When the last subtask of a milestone merges, Claude tells the user to check production against the milestone's "Done when".
 
 ## 4. Pull requests
 
@@ -112,7 +112,19 @@ Two to four sentences: what this PR does and why, in plain language.
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
-## 5. Rules
+## 5. Reviewing a PR
+
+Triggered by `/review [PR number] [--security | --no-security]`, or by asking "review PR 5". The steps are in `.claude/skills/review/SKILL.md`.
+
+- **Who reviews:**
+  - `reviewer` always runs: spec and acceptance criteria, correctness, simplification, architecture, integration and deployment, project rules, and a security triage.
+  - `bugfinder` always runs: races, edge cases, async and error handling, framework pitfalls.
+  - `security-audit` runs when the reviewer recommends it, when you pass `--security`, or when the PR touches sensitive paths. `--no-security` skips it.
+  - Agent definitions are in `.claude/agents/`, and their shared rules in `.claude/skills/review/protocol.md`.
+- **How it runs:** the agents run in the background and in parallel, and they're read-only. Claude merges their findings and posts **one GitHub review**: inline comments on the code that causes each finding, and a summary with the verdict, the acceptance criteria and the security status.
+- **What happens next:** a review never changes code. You decide which findings to fix, then ask Claude to fix them.
+
+## 6. Rules
 
 - **One subtask = one branch = one PR.** Never mix subtasks or unrelated changes.
 - **No direct commits to `main`.** Everything goes through a PR, including docs.

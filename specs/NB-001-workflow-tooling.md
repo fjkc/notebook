@@ -117,7 +117,7 @@ No app code, no dependencies, no env changes.
 
 ## Subtasks
 
-- [ ] **NB-001.1 · Review agents and `/review`** (`feat/NB-001.1-review-agents`)
+- [x] **NB-001.1 · Review agents and `/review`** (`feat/NB-001.1-review-agents`)
   - The three agents and the `/review` skill (R5–R12). `WORKFLOW.md` review step, `CLAUDE.md` pointer.
   - Comes first, so the PR for NB-001.2 can already be reviewed with it.
   - Acceptance:
@@ -139,3 +139,5 @@ No app code, no dependencies, no env changes.
 None. The dispatch design (`/review` launches the agents side by side) was confirmed by the user on the spec PR.
 
 ## Notes
+- NB-001.1: the agents' shared rules (inputs, read-only, findings format) live once in `.claude/skills/review/protocol.md` instead of being repeated in each agent.
+- NB-001.1: agents return findings as a JSON block, and `diff_lines.py` computes which lines accept inline comments, so a single out-of-diff finding can't make GitHub reject the whole review.
