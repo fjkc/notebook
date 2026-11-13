@@ -1,39 +1,37 @@
 // Server-only: importing @repo/backend already fails the build in a Client Component.
+import { unstable_rethrow } from "next/navigation";
 import type { NextRequest } from "next/server";
-import { AppError, logOperation, toErrorBody, type ErrorCode } from "@repo/backend";
+import { AppError, describeError, logOperation, toErrorBody, type ErrorCode } from "@repo/backend";
 
 function errorResponse(error: unknown, route: string): { response: Response; code: ErrorCode } {
   const { status, body } = toErrorBody(error);
-  if (!(error instanceof AppError) && body.error.code === "INTERNAL") {
-    // The only place unknown error details are written; logOperation stays allow-listed.
-    console.error(`[${route}] unexpected error`, error);
+  // Details go to the log only, as a bounded summary: provider errors carry request bodies with
+  // document text. Logged for unknown errors, for zod failures (paths and codes only) and for
+  // AppErrors that wrap an underlying cause. logOperation stays strictly allow-listed.
+  const isPlainAppError = error instanceof AppError && error.cause === undefined;
+  if (!isPlainAppError) {
+    console.error(`[${route}] ${body.error.code}`, JSON.stringify(describeError(error)));
   }
   return { response: Response.json(body, { status }), code: body.error.code };
 }
 
 /**
  * Turns any thrown value into a JSON error Response with `{ error: { code, message } }`.
- * The details of unknown errors go to the server log only, never into the body.
+ * Inside `withRoute`, prefer throwing: only thrown errors get their code into the log line.
  */
 export function toErrorResponse(error: unknown, route = "unknown"): Response {
   return errorResponse(error, route).response;
 }
 
-const OWNER_COOKIE = "owner_id";
-const OWNER_PREFIX_LENGTH = 8;
-
-/** Reads the owner cookie without throwing; the health route and first visits have none. */
-function ownerPrefixOf(request: NextRequest): string | undefined {
-  try {
-    return request.cookies.get(OWNER_COOKIE)?.value.slice(0, OWNER_PREFIX_LENGTH) || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 /**
  * Wraps a Route Handler: catches everything and logs one line with duration and outcome.
  * Usage: `export const GET = withRoute("health", async (request) => { … })`.
+ *
+ * - Throw `AppError` for expected failures instead of returning an error response, so the
+ *   log line carries the error code.
+ * - Streaming routes (chat): this logs when the Response is returned, before the stream runs.
+ *   Errors inside the stream must be logged from the stream's onError/onFinish.
+ * - Next's control-flow throws (redirect, notFound) are rethrown, not turned into a 500.
  */
 export function withRoute<Context>(
   name: string,
@@ -41,7 +39,8 @@ export function withRoute<Context>(
 ): (request: NextRequest, context: Context) => Promise<Response> {
   return async (request, context) => {
     const started = performance.now();
-    const ownerPrefix = ownerPrefixOf(request);
+    // logOperation cuts it to 8 characters.
+    const ownerPrefix = request.cookies.get("owner_id")?.value;
     try {
       const response = await handler(request, context);
       logOperation({
@@ -52,6 +51,7 @@ export function withRoute<Context>(
       });
       return response;
     } catch (error) {
+      unstable_rethrow(error);
       const { response, code } = errorResponse(error, name);
       logOperation({
         route: name,
