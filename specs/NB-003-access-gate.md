@@ -67,12 +67,12 @@ Only people who have the password can use the deployed app. The author emails th
     - `/api/*`: `401` with `{ error: { code: "UNAUTHORIZED", message } }` (`docs/ARCHITECTURE.md` → "Errors").
     - A Server Action (a `POST` with a `Next-Action` header) on any other page: **passed through**. The action's first call, `getOwnerId()` (R12), throws `UNAUTHORIZED`, and the action returns the error shape, so the UI shows "Your session has expired. Reload the page." instead of a broken redirect.
     - Any other method to a page: `401` with the same error shape.
-  - The owner cookie is only set on requests that passed the gate.
+  - The owner cookie logic (NB-002 R20) runs on **every request the proxy lets through**: requests with a valid session, and `/login` including the `logIn` action. So the page rendered right after login already has an owner, even when Next.js renders the redirect target inside the action's response. An `owner_id` without a session grants nothing, because `getOwnerId()` also requires a session (R12). Requests that are redirected to `/login` or rejected with `401` get no owner cookie.
 - **R12** **Second layer.** `getOwnerId()` (`frontend/src/lib/owner.ts`) also verifies the `access` cookie with `@repo/backend/access` and throws `AppError("UNAUTHORIZED")` without a valid session. Every Server Action except `logIn`, every Route Handler except health, and every page that loads owner data calls it, so they stay protected even if the matcher changes (the Next.js proxy docs recommend checking inside each Server Function, not only in the proxy).
 - **R13** **Docs** (in NB-003.2, except rule 2 and the backend README, which are R6):
   - `CLAUDE.md` project paragraph: reviewers use the live deployment "with a password the author sends them", instead of "without signing up".
   - `docs/ARCHITECTURE.md`: the "No login, cookie-based ownership" row in "Key decisions" becomes "Shared password gate, cookie-based ownership" (why: protect the free-tier quota; trade-off: one password for all, notebooks still tied to one browser). The diagram's proxy line, "Ownership", and a new "Access gate" section describe R1–R12 and R8's upgrade path.
-  - `docs/PROGRESS.md`: M1 gets the task "Access gate (NB-003)", its "Done when" adds "without the password, the production URL shows only the login page", and the Decisions log row "Auth" becomes "Shared password gate + anonymous `owner_id` cookie".
+  - `docs/PROGRESS.md`: M1 gets the task "Access gate (NB-003)", its "Done when" adds "without the password, the production URL shows only the login page", M3's "Done when" becomes "… opening one of your notebook URLs in a private window and logging in there gives a 404" (without logging in, the gate shows the login page, so the ownership check can't be seen), and the Decisions log row "Auth" becomes "Shared password gate + anonymous `owner_id` cookie".
   - `frontend/README.md`: the layout gets `app/login/`, and `proxy.ts` is described as "access gate, then owner cookie".
   - `infra/README.md`: env table, setup step 5 (generate both values with the commands from R1), step 6 (add them in Vercel for Production and Preview, redeploy after env changes), and the recovery checklist ("Nobody can log in → check `APP_PASSWORD` and `SESSION_SECRET` in the environment's scope, then redeploy").
   - `frontend/.env.example`: both variables, empty, with the generate commands as comments.
@@ -118,14 +118,14 @@ Only people who have the password can use the deployed app. The author emails th
       - Another API route (a temporary probe, not committed, if none exists yet) returns `401` with the error shape.
       - An empty submit shows "Enter the password."; a 201-character input is rejected the same way.
       - A wrong password shows "That password isn't right." after about a second.
-      - The right password sets `access` (`HttpOnly`, `SameSite=Lax`) and lands on `/`; the `owner_id` cookie is set on that request.
+      - The right password sets `access` (`HttpOnly`, `SameSite=Lax`) and lands on `/`. After landing, the browser has an `owner_id` cookie, and a temporary debug render of `getOwnerId()` on `/` (not committed) returns it on that first page load instead of throwing.
       - Opening `/login` again while logged in redirects to `/`.
       - `/login?next=//evil.example` and `/login?next=%2F%09%2Fevil.example` log in to `/`, not to another site.
       - **Second layer:** with the `access` cookie deleted, a temporary page or Server Action that calls `getOwnerId()` (with the matcher temporarily excluding its path, not committed) gets `UNAUTHORIZED`, and the UI shows "Your session has expired. Reload the page."
       - Changing `APP_PASSWORD` and restarting logs the browser out.
     - On the Vercel preview of this PR: the same login flow works, and `access` has `Secure`.
     - `grep -rn "APP_PASSWORD\|SESSION_SECRET" frontend/src` finds nothing: the frontend never reads them directly.
-    - Docs: every change listed in R13 is made, and `grep -rn "No login\|without signing up" CLAUDE.md docs README.md` finds nothing.
+    - Docs: every change listed in R13 is made (including M3's "Done when" in `docs/PROGRESS.md`, which now mentions logging in), and `grep -rn "No login\|without signing up" CLAUDE.md docs README.md` finds nothing.
     - **After merge, on production:** without the password, the production URL shows only the login page (new line in M1's "Done when").
 
 ## Open questions
