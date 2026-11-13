@@ -22,12 +22,14 @@ There are no status fields to keep in sync. To see where things stand, look at t
 - One file per spec in `specs/`, named `NB-XXX-short-name.md`, written from `specs/_template.md`.
 - IDs are `NB-` plus a sequential three-digit number. They're never reused.
 - A spec covers one or more tasks of a milestone in `docs/PROGRESS.md`. It references `docs/ARCHITECTURE.md` instead of repeating it.
-- **Subtasks:** a spec that's too big for one easy-to-review PR is split into `NB-XXX.1`, `NB-XXX.2`, … All subtasks are written with the spec and reviewed together. Each subtask:
+- **Subtasks:** every spec has at least one subtask `NB-XXX.1`, so every PR has a checkbox to tick and a title scope `(NB-XXX.n)` that `/review` can tell apart from a spec PR. A spec that's too big for one easy-to-review PR is split into `NB-XXX.1`, `NB-XXX.2`, … All subtasks are written with the spec and reviewed together. Each subtask:
   - is independently mergeable, so the app builds and works after each one,
   - has its own acceptance criteria,
   - becomes exactly one branch and one PR (roughly under 400 changed lines, excluding lockfiles and generated files).
 
 ## 2. Writing a spec
+
+Run with `/spec [topic]`, or ask in plain words ("let's write the spec for X"). The steps are in `.claude/skills/spec/SKILL.md`.
 
 1. The user names the work package, or asks Claude to propose the next one from `docs/PROGRESS.md`.
 2. Claude reads the relevant section of `docs/ARCHITECTURE.md` and the affected folder READMEs.
@@ -38,7 +40,7 @@ There are no status fields to keep in sync. To see where things stand, look at t
 
 ## 3. Implementing a subtask
 
-Triggered by "implement NB-003" (take the first unticked subtask) or "implement NB-003.2".
+Run with `/implement NB-003` (takes the first unticked subtask) or `/implement NB-003.2`, or ask in plain words ("implement NB-003.2", "pick up NB-002.1"). The steps are in `.claude/skills/implement/SKILL.md`.
 
 1. **Check:** the spec is merged, its dependencies are done, and the working tree is clean. Otherwise stop and say why.
 2. **Branch** from an up-to-date `main`, named `<type>/NB-<id>[.<sub>]-<1–2 words>`:
@@ -147,6 +149,6 @@ For every finding that isn't fixed, Claude replies in its thread with the **reas
 
 - **One subtask = one branch = one PR.** Never mix subtasks or unrelated changes.
 - **No direct commits to `main`.** Everything goes through a PR, including docs.
-- **Bugs get a spec too.** It can be short (Goal, Requirements, Acceptance criteria) with type `fix`, so every change traces back to an ID.
+- **Bugs get a spec too.** It can be short (Goal, Requirements, one subtask `NB-XXX.1` with its acceptance criteria) with type `fix`, so every change traces back to an ID.
 - **The spec is the contract.** If implementation shows the spec is wrong, stop, explain, and propose a change to the spec. Continue once the user agrees.
 - **Green and deployable.** Every PR passes all checks and leaves `main` deployable. Vercel builds a preview for every PR, so use it for anything UI-related.
