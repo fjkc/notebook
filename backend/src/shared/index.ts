@@ -1,2 +1,3 @@
 // Client-safe entry "@repo/backend/shared". Nothing in shared/ may import from outside shared/.
-export {};
+export * from "./limits";
+export * from "./error-codes";
