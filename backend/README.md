@@ -106,5 +106,5 @@ npm test -w backend
 Tests cover pure logic: chunker, citation parser, URL guard (with DNS resolution injected). `server-only` throws outside a React Server environment, so `vitest.config.ts` aliases it to an empty module:
 
 ```ts
-resolve: { alias: { "server-only": new URL("./test/empty.ts", import.meta.url).pathname } }
+resolve: { alias: { "server-only": fileURLToPath(new URL("./test/empty.ts", import.meta.url)) } }
 ```
