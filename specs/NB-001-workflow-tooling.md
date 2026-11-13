@@ -157,7 +157,7 @@ No app code, no dependencies, no env changes.
     - The result is one GitHub review: findings with a single location appear as inline comments on those lines, and the summary follows R12 with no tables.
     - No agent modified files or posted anything itself (`git status` clean, exactly one new review on the PR).
     - On a spec PR, `/review` runs only `spec-reviewer`, and the summary shows spec readiness and questions for the author. Checked on the next spec PR (NB-002).
-- [ ] **NB-001.2 · `/spec` and `/implement`** (`feat/NB-001.2-spec-implement`)
+- [x] **NB-001.2 · `/spec` and `/implement`** (`feat/NB-001.2-spec-implement`)
   - The two skills (R1–R4). `WORKFLOW.md` names them at the start of sections 2 and 3.
   - Acceptance:
     - Both work when typed, and informal requests trigger them too ("let's write the spec for X", "pick up NB-002.1"). The model doesn't start them unasked.
@@ -178,3 +178,6 @@ None. The dispatch design (`/review` launches the agents side by side) was confi
 - NB-001.1: two acceptance criteria are verified on later PRs: `--no-security` on the NB-001.2 PR (added to its criteria), and spec PR routing on the NB-002 spec PR.
 - NB-001.1: after the third agent review, the user asked for a loop gate (R16) and incremental re-reviews (R15). The hook was narrowed to a small tool surface instead of filtering a general shell, and the tooling guard was added.
 - NB-001.1: the fourth agent review found the env-file check could be bypassed by letter case, symlinks and Grep globs; all three are now denied. The tooling guard was widened to all of `.claude/` plus `CLAUDE.md` and untracked files, and a ⚠️ "review incomplete" verdict was added to R12. Hook matcher stays `Bash|Read|Grep|Glob`: `tools:` already limits each agent to those four, and `*` risks blocking the agent's report-back tool.
+- NB-001.2: `/implement` reads the spec from `origin/main`, never from a local branch, so an unmerged spec on a checked-out branch can't pass the check. If an earlier subtask of the same spec is unticked, it asks instead of refusing.
+- NB-001.2: until the M1 scaffold adds a root `package.json`, `/implement` reports the four checks as not available instead of claiming they passed.
+- NB-001.2: the refusal on an unmerged spec can only be checked once a spec PR is open; it's checked on the NB-002 spec PR.
