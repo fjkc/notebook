@@ -9,6 +9,6 @@ export async function findOwned(ownerId: string, id: string): Promise<{ id: stri
     .eq("owner_id", ownerId)
     .eq("id", id)
     .maybeSingle();
-  if (error) throw new Error(`notebooks.findOwned failed: ${error.code ?? "unknown"}`, { cause: error });
+  if (error) throw new Error(`notebooks.findOwned failed: ${error.code || "unknown"}`, { cause: error });
   return data;
 }
