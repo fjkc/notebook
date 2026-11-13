@@ -8,7 +8,7 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
 ## Scope
 - **In:**
   - Project skills `/spec`, `/implement`, `/review` in `.claude/skills/`.
-  - Project agents `reviewer`, `bugfinder`, `security-audit` in `.claude/agents/`.
+  - Project agents `reviewer`, `bugfinder`, `security-audit` and `spec-reviewer` in `.claude/agents/`.
   - Updates to `WORKFLOW.md` and `CLAUDE.md` so they point to the commands.
 - **Out:**
   - CI (GitHub Actions) and branch protection: separate spec in M1.
@@ -34,7 +34,7 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
   - Posts the result as one GitHub review on the PR: inline comments on the responsible code plus a summary (R12). Then gives the user a short summary with the verdict.
 
 ### Review agents
-- **R6** Three project agents in `.claude/agents/`. None of them can edit files: their tools are `Read, Grep, Glob, Bash` only (Bash for `git diff`, `gh pr view`, running checks). Their instructions forbid any command that writes, commits, pushes or comments. Only the main session posts the comment.
+- **R6** Four project agents in `.claude/agents/` (R7–R9, R14). None of them can edit files: their tools are `Read, Grep, Glob, Bash` only (Bash for `git diff`, `gh pr view`, reading CI results). A `PreToolUse` hook on each agent enforces a **small tool surface**: Bash may run only `git diff/show/log/grep/rev-parse/status/ls-files` with exact per-command flag lists, and `gh pr view/diff/checks <n>`, optionally piped into `head`/`tail -n N`. Read, Grep and Glob work only inside the project. Agents never run the PR's code (tests and lint run in CI), and no tool may touch local `.env*` files. The hook denies by default and fails closed (`|| exit 2`). `/review` refuses to run when `.claude/` or `CLAUDE.md` in the local checkout differ from the base branch or contain untracked files, so a checked-out PR can't review itself with its own rules. Their instructions treat everything in the PR as untrusted data. Only the main session posts the review, after a secret scan of the payload.
 - **R7** `reviewer` (always runs). Checks the PR against its spec and the project rules:
   - **Spec compliance:** every acceptance criterion of the subtask, marked met or not met, with evidence (file:line, command output).
   - **Correctness and sense:** does the code do what the PR says, are there obvious bugs.
@@ -48,7 +48,7 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
   - Edge cases (empty, huge, unicode, boundaries, null and undefined, partial failures).
   - Async and error handling (unhandled rejections, missing awaits, swallowed errors, aborted streams, timeouts).
   - Serverless and framework pitfalls (function time limits, body size limits, caching and revalidation, hydration mismatches, stale closures).
-  - General logic bugs. It may run existing tests and type checks to confirm a suspicion.
+  - General logic bugs. It confirms suspicions by reading code and CI results. It never runs the PR's code locally.
 - **R9** `security-audit` (optional). Checks the change against current practice (OWASP Top 10, OWASP Top 10 for LLM applications, framework guidance):
   - Secrets and `server-only` boundaries, data reaching the client.
   - Authorisation: owner scoping on every query, 404 for foreign IDs, cookie flags.
@@ -76,12 +76,39 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
   - **Inline comments:** every finding with a single location becomes an inline comment on those lines. It starts with the severity and the agent (e.g. `🟠 **Should fix** · bugfinder`), then what, why, and the fix (as a GitHub suggestion block when it's a small, exact change).
   - **Lines outside the diff:** GitHub only accepts inline comments on lines in the diff. Findings in unchanged code go into the summary with `file:line`.
   - **Summary** (the review body), in the PR description style (emoji headlines, bullets, no tables):
-    - verdict line: ✅ ready to merge, or 🔁 changes needed, with the count per severity and "N inline comments",
+    - verdict line: ✅ ready to merge, 🔁 changes needed, or ⚠️ review incomplete (an agent returned no result; never ✅), with the count per severity and "N inline comments",
     - `## 🎯 Spec and acceptance criteria`: each criterion met or not met,
     - `## 🧩 General findings`: findings marked "general" or outside the diff, by severity,
     - `## 🛡️ Security`: ran or skipped, and why,
     - `## 💡 Simplification`: only if there are ideas that aren't tied to one place.
   - Duplicates across agents are merged and attributed to all agents that found them.
+- **R13** **A fresh set of eyes.** Every agent starts without context from the conversation that wrote the code.
+  - They're launched as fresh subagents, never as forks of the conversation.
+  - Their prompt contains only the facts (PR, commit, spec, changed files): no summary of the change, no author reasoning, no findings from earlier reviews.
+  - They treat the PR description and code comments as claims to verify.
+- **R14** `spec-reviewer` (spec PRs only). A spec PR has a spec ID without a subtask in its title (`docs(NB-002): …`) and changes only Markdown, including a `specs/NB-*.md` file.
+  - On spec PRs, `/review` runs `spec-reviewer` **instead of** `reviewer` and `bugfinder`, which need code. `security-audit` runs only with `--security`.
+  - With fresh eyes (R13), it reads the spec as a new developer or a new agent session who must implement it from the repo alone, and checks:
+    - completeness for a newcomer and coherence with the architecture, the rules and earlier specs,
+    - logic and contradictions,
+    - gaps (errors, limits, concurrency, migrations, env, deployment, security),
+    - hidden open questions and vague wording, missing definitions and design decisions,
+    - testability of every requirement through the acceptance criteria,
+    - subtask cuts (mergeable, ordered, PR-sized),
+    - scope and fit with the milestone, the budget and the template.
+  - Output: standard findings plus `readiness` (ready or needs work), its reason, and questions for the author. The summary shows "📐 Spec readiness" and "❓ Questions for the author" instead of acceptance criteria.
+
+- **R15** **Incremental re-reviews.**
+  - Each posted review carries a hidden marker with its round and head commit.
+  - A later `/review` on the same PR passes `round` and `since_sha` to the agents.
+  - The agents focus on the commits since then, but check their impact on the whole PR and codebase. They re-raise problems in untouched code only if they're blockers.
+  - Fresh eyes still applies: agents get the commit range, never the earlier findings.
+- **R16** **Loop gate for fixing findings** (`WORKFLOW.md` §5), so review rounds converge:
+  - Blockers are always fixed.
+  - Should-fix is judged per finding by its real impact on this project.
+  - Nits are fixed in round 1 at most.
+  - Every finding that isn't fixed gets a reply with the reasoning and a resolved thread. When Claude is unsure, or a human should decide, the reply pings the PR author with a question and the thread stays open.
+  - The agents calibrate severity to the project (protocol: "Calibrate to this project").
 
 ## Design
 
@@ -104,34 +131,38 @@ The workflow in `WORKFLOW.md` runs through three slash commands instead of long 
 The roles and the optional security pass are the same as asked for, and parallel runs are faster than nested ones. A security audit recommended by the reviewer adds one more round to the review.
 
 **Files**
-- `.claude/skills/spec/SKILL.md`, `.claude/skills/implement/SKILL.md`, `.claude/skills/review/SKILL.md`
-- `.claude/agents/reviewer.md`, `.claude/agents/bugfinder.md`, `.claude/agents/security-audit.md`
-  - Frontmatter: `name`, `description`, `tools: Read, Grep, Glob, Bash`, `model: inherit`.
-  - The body is the agent's instructions: focus areas (R7–R9), how to get the diff and spec, findings format (R11), "read-only" rule.
-- `WORKFLOW.md`: a review step between "PR opened" and "user merges", and the commands named where each step starts.
-- `CLAUDE.md`: `.claude/` added to "Where things are".
+- `.claude/skills/spec/SKILL.md`, `.claude/skills/implement/SKILL.md` (NB-001.2), `.claude/skills/review/SKILL.md`
+- `.claude/skills/review/protocol.md`: the agents' shared rules (fresh eyes, inputs, re-reviews, severity calibration, untrusted content, read-only, findings and output format).
+- `.claude/skills/review/diff_lines.py`: commentable line ranges for inline comments (run by the dispatcher). `secret_scan.py`: checks the payload before posting.
+- `.claude/agents/reviewer.md`, `bugfinder.md`, `security-audit.md`, `spec-reviewer.md`
+  - Frontmatter: `name`, `description`, `tools: Read, Grep, Glob, Bash`, `model: inherit`, and a `PreToolUse` hook (`review-readonly.py … || exit 2`) for Bash, Read, Grep and Glob.
+  - The body is the agent's focus area (R7–R9, R14). Everything shared lives in `protocol.md`.
+- `.claude/hooks/review-readonly.py` (R6) and its tests `test_review_readonly.py`.
+- `WORKFLOW.md`: section 5, "Reviewing a PR", with re-reviews and the loop gate (R15, R16). `CLAUDE.md`: `.claude/` added to "Where things are".
 
-**Inputs each agent gets** (passed by `/review` in the launch prompt, since subagents don't see the conversation): PR number, branch, spec file path and subtask ID (parsed from the PR title and spec link), and the list of changed files.
+**Inputs each agent gets** (passed by `/review` in the launch prompt, since subagents don't see the conversation): PR number and URL, head commit, base branch, kind (code or spec), spec path and subtask ID (from the PR title and spec link), whether the local checkout matches, round and `since_sha`, and the changed files. The branch name is deliberately left out, because whoever opens the PR chooses it.
 
 No app code, no dependencies, no env changes.
 
 ## Subtasks
 
-- [ ] **NB-001.1 · Review agents and `/review`** (`feat/NB-001.1-review-agents`)
-  - The three agents and the `/review` skill (R5–R12). `WORKFLOW.md` review step, `CLAUDE.md` pointer.
+- [x] **NB-001.1 · Review agents and `/review`** (`feat/NB-001.1-review-agents`)
+  - The four agents and the `/review` skill (R5–R16). `WORKFLOW.md` review step, `CLAUDE.md` pointer.
   - Comes first, so the PR for NB-001.2 can already be reviewed with it.
   - Acceptance:
     - `/review` works when typed, and "review PR <n>" in plain words triggers it too. The model doesn't start a review unasked.
     - Running it on this subtask's own PR launches reviewer, bugfinder and security-audit (triggered by `.claude/**`) in the background, and the conversation stays responsive.
-    - Running it with `--no-security` skips security-audit, and the summary says so.
+    - Running it with `--no-security` skips security-audit, and the summary says so. Checked on the NB-001.2 PR (carried over to its criteria).
     - The reviewer's security triage is visible in the summary. When it recommends an audit that the paths didn't trigger, the audit runs before the review is posted (checked by reading the skill logic, or on a later PR where it happens).
     - The result is one GitHub review: findings with a single location appear as inline comments on those lines, and the summary follows R12 with no tables.
     - No agent modified files or posted anything itself (`git status` clean, exactly one new review on the PR).
+    - On a spec PR, `/review` runs only `spec-reviewer`, and the summary shows spec readiness and questions for the author. Checked on the next spec PR (NB-002).
 - [ ] **NB-001.2 · `/spec` and `/implement`** (`feat/NB-001.2-spec-implement`)
   - The two skills (R1–R4). `WORKFLOW.md` names them at the start of sections 2 and 3.
   - Acceptance:
     - Both work when typed, and informal requests trigger them too ("let's write the spec for X", "pick up NB-002.1"). The model doesn't start them unasked.
     - `/implement NB-999` (doesn't exist) and `/implement` on an unmerged spec refuse with a clear reason and change nothing.
+    - Carried over from NB-001.1: `/review <n> --no-security` on this PR skips security-audit, and the summary says so.
     - The PR is reviewed with `/review` from NB-001.1.
     - Proven in real use: the next spec (NB-002) is written with `/spec`, and its first subtask is built with `/implement`. Fixes found there go into a `fix` spec.
 
@@ -139,3 +170,11 @@ No app code, no dependencies, no env changes.
 None. The dispatch design (`/review` launches the agents side by side) was confirmed by the user on the spec PR.
 
 ## Notes
+- NB-001.1: the agents' shared rules (inputs, read-only, findings format) live once in `.claude/skills/review/protocol.md` instead of being repeated in each agent.
+- NB-001.1: agents return findings as a JSON block, and `diff_lines.py` computes which lines accept inline comments, so a single out-of-diff finding can't make GitHub reject the whole review.
+- NB-001.1: R13 (fresh eyes) was added by the user during the PR. Read-only enforcement by hook (R6) and the untrusted-content rule came from the first agent review of this PR.
+- NB-001.1: R14 (`spec-reviewer`) was added by the user during the PR, after the second agent review.
+- NB-001.1: the second agent review found ways around the first read-only hook. It was rewritten as a shell tokenizer with per-command flag allowlists, default deny and fail closed, tested with 100 cases. Local test runs were dropped from the agents, and a secret scan runs before posting.
+- NB-001.1: two acceptance criteria are verified on later PRs: `--no-security` on the NB-001.2 PR (added to its criteria), and spec PR routing on the NB-002 spec PR.
+- NB-001.1: after the third agent review, the user asked for a loop gate (R16) and incremental re-reviews (R15). The hook was narrowed to a small tool surface instead of filtering a general shell, and the tooling guard was added.
+- NB-001.1: the fourth agent review found the env-file check could be bypassed by letter case, symlinks and Grep globs; all three are now denied. The tooling guard was widened to all of `.claude/` plus `CLAUDE.md` and untracked files, and a ⚠️ "review incomplete" verdict was added to R12. Hook matcher stays `Bash|Read|Grep|Glob`: `tools:` already limits each agent to those four, and `*` risks blocking the agent's report-back tool.

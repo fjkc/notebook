@@ -53,3 +53,6 @@ infra/supabase/.temp
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# python bytecode (review tooling scripts)
+__pycache__/
