@@ -41,9 +41,10 @@ frontend/
     lib/
       config.ts                       APP_NAME, UI-only constants
       owner.ts                        getOwnerId() from the cookie
+      owner-cookie.ts                 cookie name and max age, shared with proxy.ts
       http.ts                         toErrorResponse(), withRoute() logging wrapper
       supabase/browser.ts             publishable key, uploadToSignedUrl only
-    proxy.ts (or middleware.ts)       sets the owner_id cookie
+    proxy.ts                          sets the owner_id cookie (imports only @repo/backend/shared)
   vercel.json                         region fra1, daily health cron
   .env.example
 ```

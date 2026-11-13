@@ -76,9 +76,12 @@ The request path is `Browser → frontend (owner from cookie, thin adapter) → 
 
 ## 4. Ownership
 
-- `proxy.ts` / `middleware.ts`: if the `owner_id` cookie is missing, set it to `crypto.randomUUID()`; `httpOnly`, `secure`, `sameSite: "lax"`, `maxAge` one year.
-- `getOwnerId()` (frontend) reads the cookie (async in Next 15+). If absent, throw `UNAUTHORIZED`. It is the only place that decides who the owner is; the value goes to backend functions as a plain `ownerId` argument.
-- `assertNotebookOwner(ownerId, notebookId)` (backend) loads the notebook with `owner_id` filter and throws `NOT_FOUND` if no row. Every backend service that takes a notebook or source id calls it first.
+- `frontend/src/proxy.ts` (Next 16): if the `owner_id` cookie is missing **or not a UUID**, set it to `crypto.randomUUID()`; `httpOnly`, `sameSite: "lax"`, `path: "/"`, `maxAge` one year, and `secure` in production only (so it also works on `http://localhost`).
+  - The new value is set on the response **and on the forwarded request** (`NextResponse.next({ request: { headers } })`), so `getOwnerId()` sees it on the very first visit.
+  - The matcher skips `_next/static`, `_next/image`, `favicon.ico` and `api/health` (the cron needs no cookie). Server Actions post to page routes, so they stay covered.
+  - The proxy can't import `@repo/backend` (its `server-only` guard throws outside Server Components); it uses `isUuid` from `@repo/backend/shared`.
+- `getOwnerId()` (`frontend/src/lib/owner.ts`) awaits `cookies()` and returns the value if it's a UUID, otherwise throws `UNAUTHORIZED`. It is the only place that decides who the owner is; the value goes to backend functions as a plain `ownerId` argument.
+- `assertNotebookOwner(ownerId, notebookId)` (backend) validates both as UUIDs, loads the notebook with `owner_id` filter and throws `NOT_FOUND` if no row, or if either ID is malformed. Every backend service that takes a notebook or source id calls it first.
 - Accessing someone else's notebook returns 404, not 403, so ids can't be probed.
 
 ## 5. Data model
