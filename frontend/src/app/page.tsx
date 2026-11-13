@@ -1,7 +1,9 @@
+import { APP_NAME } from "@/lib/config";
+
 export default function Home() {
   return (
     <main className="flex flex-1 items-center justify-center p-8">
-      <h1 className="text-2xl font-semibold">Untitled notebook app</h1>
+      <h1 className="text-2xl font-semibold">{APP_NAME}</h1>
     </main>
   );
 }
