@@ -99,7 +99,7 @@ The repo becomes a working app: an empty Next.js shell with the backend package,
     - `frontend/README.md`, `.env.example` and `vercel.json` are unchanged.
     - `docs/PROGRESS.md` → "Scaffolding notes" matches what was done.
     - A Client Component importing `@repo/backend` fails the build (checked once by hand, not committed).
-- [ ] **NB-002.2 · CI** (`feat/NB-002.2-ci`)
+- [x] **NB-002.2 · CI** (`feat/NB-002.2-ci`)
   - R8–R9: the workflow.
   - Acceptance:
     - The PR itself shows the `checks` job running and passing.

@@ -15,7 +15,7 @@ Follow `infra/README.md` → "Setup from scratch", steps 1–5: Gemini key, Supa
    - `/implement NB-XXX[.n]`: check the spec is merged, branch, implement, verify, tick, open the PR.
    - Both follow `WORKFLOW.md` and don't duplicate it.
 2. **Scaffold** the workspaces (see "Scaffolding notes" below): root `package.json` with workspaces and fan-out scripts, Next.js in `frontend/`, `@repo/backend` with vitest. `npm run build` passes from the root.
-3. **Infra · CI:** a GitHub Actions workflow running lint, typecheck, test and build on every PR and on `main`. The user then enables branch protection on `main` (PR required, CI must pass).
+3. **Infra · CI:** a GitHub Actions workflow running lint, typecheck, test and build on every PR and on `main`.
 4. shadcn/ui init and base components (button, input, textarea, dialog, dropdown-menu, sheet, popover, tooltip, scroll-area, skeleton, sonner).
 5. Foundations: `APP_NAME` placeholder, limits, error codes and `AppError`, model IDs, error-to-response helper.
 6. Supabase clients: server (backend, secret key) and browser (frontend, publishable key, uploads only).
@@ -120,6 +120,7 @@ Every other dependency is installed by the subtask that first uses it (NB-002 �
 | UI language | English | decided |
 | Regions | Supabase Frankfurt, Vercel fra1 | decided |
 | Repo layout | npm workspaces: `frontend/` (deployed), `backend/` (`@repo/backend` library), `infra/`; one Vercel deployment | decided |
+| Branch protection | None; `main` stays unprotected, CI runs on every PR | decided |
 | Workflow | Spec-driven; specs and code reach `main` only via PRs; merging a spec PR approves it | decided |
 | App name | – | open (M2) |
 | Design | – | open (M2) |
