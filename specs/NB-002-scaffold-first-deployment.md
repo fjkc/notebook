@@ -106,7 +106,7 @@ The repo becomes a working app: an empty Next.js shell with the backend package,
     - The workflow file has top-level `permissions: contents: read` and no secrets.
     - After merge, a push to `main` runs the job too (checked on the next merge).
     - `infra/README.md` no longer says "CI is planned" and has no branch protection step; `docs/PROGRESS.md` has the branch protection row in the decisions log and no longer asks for protection in M1 task 3.
-- [ ] **NB-002.3 · Foundations** (`feat/NB-002.3-foundations`)
+- [x] **NB-002.3 · Foundations** (`feat/NB-002.3-foundations`)
   - R10–R17: shadcn, `APP_NAME`, limits, error codes, `AppError`, model IDs, logging, `http.ts`, tests.
   - Acceptance:
     - All four checks pass in CI, including the new unit tests (R17).
@@ -143,3 +143,8 @@ None.
 - NB-002.1: the backend also got `@types/node` (dev), needed for its tsconfig `types` and `vitest.config.ts`. TypeScript stays on `^5` in both workspaces (one hoisted version).
 - NB-002.1: create-next-app rejects `.scaffold` as a project name, so it ran in `.scaffold/app`; the Geist fonts were removed with the logos to keep the placeholder neutral and the build free of font downloads.
 - NB-002.1: `next.config.ts` also sets `poweredByHeader: false` and baseline headers for every path (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`), from review round 1.
+- NB-002.3: shadcn was initialised with the Radix base (`-b radix`, as `frontend/README.md` requires) and the `nova` preset. The preset's Geist font was dropped again (fonts are chosen in M2); `--font-sans` is the system font.
+- NB-002.3: shadcn 4 brings its own runtime dependencies: `cn` (shadcn's replacement for clsx + tailwind-merge, published by shadcn), `shadcn` (for `shadcn/tailwind.css`), `radix-ui`, `class-variance-authority`, `tw-animate-css`, `lucide-react`, and `next-themes` for the sonner component. The tooltip component needs a `TooltipProvider`, which the root layout mounts next to the `Toaster`.
+- NB-002.3: model IDs checked on 2026-11-13: `gemini-3.8-flash` (latest stable Flash) and `gemini-embedding-001`. The newer `gemini-embedding-2` is stable too, but drops `taskType` in favour of text prefixes, which `docs/ARCHITECTURE.md` §6–7 rely on; cosine distance in `match_chunks` makes its missing renormalisation at 768 dims irrelevant. Revisit in M4 if switching is worth the design change.
+- NB-002.3: the Gemini models URL in CLAUDE.md now redirects to the models page on aistudio.google.com. Follow-up: update the link in a separate small PR (a CLAUDE.md change on a feature branch blocks `/review` while it's checked out).
+- NB-002.3: `toErrorResponse` writes the details of unknown errors with `console.error`, the only log output outside the allow-listed `logOperation`. `FILE_TOO_LARGE`'s message derives "10 MB" from `MAX_PDF_BYTES`, so the limit lives only in `limits.ts`.
