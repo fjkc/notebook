@@ -19,18 +19,24 @@ Arguments: `$ARGUMENTS`
   git ls-tree --name-only origin/main specs/ | grep '^specs/NB-XXX-'
   git show "origin/main:specs/NB-XXX-<name>.md"
   ```
-- `NB-XXX` alone: take the first unticked subtask (`- [ ] **NB-XXX.n`). `NB-XXX.n`: take that one.
+- Match subtask lines by the exact ID followed by ` ·` (`- [ ] **NB-XXX.n ·`), so `NB-003.1` never matches `NB-003.10`.
+- `NB-XXX` alone: take the first unticked subtask that has no open PR yet (see the PR lookup in step 2). `NB-XXX.n`: take that one.
+- **PR lookup:** never use `gh pr list --search`, which also matches PR descriptions. List the titles and compare the scope exactly:
+  ```bash
+  gh pr list --state open --json number,title,url
+  ```
+  The spec PR is the one whose title scope is exactly `(NB-XXX)`; a subtask PR is the one whose scope is exactly `(NB-XXX.n)`.
 
 ## 2. Check, and refuse if anything fails
 
 Run every check before changing anything. If one fails, **stop, change nothing, and say which check failed and what would fix it**:
 - **The spec exists on `main`.** If not:
-  - an open spec PR has it (`gh pr list --state open --search "NB-XXX" --json number,title,url`): "NB-XXX isn't approved yet: its spec PR #n is still open. Merge it first."
+  - an open PR has the title scope `(NB-XXX)` (PR lookup above): "NB-XXX isn't approved yet: its spec PR #n is still open. Merge it first."
   - otherwise: "There's no spec NB-XXX. Write it with `/spec` first."
-- **The subtask exists and is unticked.** Ticked means it's done; a missing number means it isn't in the spec. Name the subtasks that do exist.
+- **The subtask exists and is unticked.** Ticked means it's done; a missing number means it isn't in the spec. Name the subtasks that do exist. A spec without any `NB-XXX.n` subtask breaks the rule in `WORKFLOW.md` §1: say so and suggest a spec fix that adds `NB-XXX.1`.
 - **"Open questions" in the spec is empty** (`None.` or nothing).
 - **Dependencies are done:** every spec in `**Depends on:**` has all subtasks ticked on `main`, and every earlier subtask of this spec is ticked. If an earlier one is unticked, ask whether to go ahead anyway; don't assume.
-- **No open PR already exists** for this subtask (`gh pr list --state open --search "NB-XXX.n"`).
+- **No open PR already exists** for this subtask (title scope exactly `(NB-XXX.n)`, PR lookup above).
 - **The working tree is clean:** `git status --porcelain` prints nothing.
 
 ## 3. Branch
@@ -38,8 +44,10 @@ Run every check before changing anything. If one fails, **stop, change nothing, 
 Use the branch name the subtask gives in backticks. Otherwise build it as in `WORKFLOW.md` §3 (`<type>/NB-XXX.n-<1–2 words>`, type from the spec).
 ```bash
 git switch main && git pull --ff-only
-git switch -c <branch>
+git branch --list "<branch>"     # must print nothing
+git switch -c "<branch>"
 ```
+If the branch already exists locally (an aborted attempt or a closed PR), ask whether to reuse it or delete it; don't decide alone.
 
 ## 4. Read, then implement
 

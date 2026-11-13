@@ -14,8 +14,9 @@ Arguments: `$ARGUMENTS`
 
 - **With a topic:** that's the work package. If it's ambiguous or spans several milestones, say how you'd cut it and ask before writing.
 - **Without a topic:** propose the next one, then **stop and wait** for the user to confirm or pick another.
-  - Read `docs/PROGRESS.md`: the first open milestone, its tasks in order.
-  - Skip tasks already covered by a spec on `main` (`specs/NB-*.md`) or by an open spec PR (`gh pr list --state open --search "docs(NB-" --json number,title`).
+  - Read from an up-to-date `origin/main`, not the local checkout, which may be stale or another branch: `git fetch origin main`, then `git show origin/main:docs/PROGRESS.md` and `git ls-tree --name-only origin/main specs/`.
+  - Take the first open milestone and its tasks in order.
+  - Skip tasks already covered by a spec on `main` or by an open spec PR (`gh pr list --state open --json number,title`, titles with a scope `(NB-XXX)` and no subtask number).
   - Propose one package in a few lines: the tasks it covers, a rough subtask cut, and anything the user must provide (keys, choices).
 
 ## 2. Check and branch
@@ -42,7 +43,7 @@ git switch -c docs/NB-XXX-spec
 
 `specs/NB-XXX-short-name.md`, from `specs/_template.md`. Keep every section of the template.
 - **Requirements:** numbered, each testable. Reference `docs/ARCHITECTURE.md` instead of repeating it. If the spec needs a design change, say so in "Design", and plan the ARCHITECTURE.md update into a subtask.
-- **Subtasks:** each independently mergeable, PR-sized (roughly under 400 changed lines), in order, with its branch name and concrete acceptance criteria (commands, behaviour, preview URL). Checks that can only happen on production or a later PR say so.
+- **Subtasks:** at least one, even for a short `fix` spec (`WORKFLOW.md` §1), so `/implement` has a checkbox to tick. Each independently mergeable, PR-sized (roughly under 400 changed lines), in order, with its branch name and concrete acceptance criteria (commands, behaviour, preview URL). Checks that can only happen on production or a later PR say so.
 - **Dependencies:** `**Depends on:**` names the spec IDs that must be done first, or `–`.
 - **Open questions:** everything that affects scope, design, cost or the data model and isn't already decided in the docs. Don't decide those silently. Leave the section as `None.` only if there really are none.
 - New dependencies outside the approved list in `CLAUDE.md` are an open question, with one line on why.

@@ -181,3 +181,4 @@ None. The dispatch design (`/review` launches the agents side by side) was confi
 - NB-001.2: `/implement` reads the spec from `origin/main`, never from a local branch, so an unmerged spec on a checked-out branch can't pass the check. If an earlier subtask of the same spec is unticked, it asks instead of refusing.
 - NB-001.2: until the M1 scaffold adds a root `package.json`, `/implement` reports the four checks as not available instead of claiming they passed.
 - NB-001.2: the refusal on an unmerged spec can only be checked once a spec PR is open; it's checked on the NB-002 spec PR.
+- NB-001.2: after the first agent review, PR lookups compare title scopes exactly instead of using `gh pr list --search` (which also matches descriptions), subtask IDs are matched with ` ·` after them, and every spec, including short `fix` specs, has at least one subtask `NB-XXX.1` (WORKFLOW.md §1 and §6).
