@@ -27,19 +27,19 @@ Follow `infra/README.md` → "Setup from scratch", steps 1–5: Gemini key, Supa
 **Done when:** the production URL loads, `/api/health` returns `ok: true` and `db: true` in production, the `owner_id` cookie is set, and CI runs on PRs.
 
 ### Scaffolding notes
-`frontend/` isn't empty, and create-next-app refuses non-empty folders:
+Done in NB-002.1 on Node 26 (pinned in `.nvmrc` and `engines.node: "26.x"`). `frontend/` wasn't empty, and create-next-app refuses non-empty folders and names starting with a dot, so it ran in a subfolder of the gitignored `.scaffold/`:
 
 ```bash
-npx create-next-app@latest .scaffold --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --use-npm --skip-install
-# move everything (incl. dotfiles) from .scaffold/ into frontend/ without overwriting,
-# merge its .gitignore into the root one (root uses unanchored paths and keeps !.env.example), delete .scaffold/
+npx create-next-app@latest .scaffold/app --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --use-npm --skip-install --yes
+# move the files into frontend/ without overwriting (README.md, .env.example, vercel.json kept),
+# drop its .gitignore (the root one covers it), next-env.d.ts, public/ logos and favicon; delete .scaffold/
+npm i -D -w backend vitest "typescript@^5" "@types/node@^26"
+npm i -w backend server-only
 npm install
-(cd frontend && npx shadcn@latest init)
-npm i -w frontend @ai-sdk/react react-markdown remark-gfm server-only zod "@repo/backend@*"
-npm i -w backend ai @ai-sdk/google @supabase/supabase-js zod unpdf @mozilla/readability linkedom server-only
-npm i -D -w backend vitest typescript
 ```
-Then add `transpilePackages: ["@repo/backend"]` in `frontend/next.config.ts`, a `"typecheck": "tsc --noEmit"` script in both workspaces, and `"test": "vitest run"` in the backend.
+Then `transpilePackages: ["@repo/backend"]` in `frontend/next.config.ts`, `"@repo/backend": "*"` in `frontend/package.json`, and the scripts: `typecheck` is `next typegen && tsc --noEmit` in `frontend/` and `tsc --noEmit` in `backend/`, `test` is `vitest run --passWithNoTests` in `backend/`.
+
+Every other dependency is installed by the subtask that first uses it (NB-002 → "Dependencies"): shadcn and `zod` in NB-002.3, `@supabase/supabase-js` in NB-002.4, the AI and extraction packages in later milestones.
 
 ## M2 · Name and design · open
 
