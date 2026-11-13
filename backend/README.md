@@ -8,7 +8,7 @@
 |---|---|
 | Services that take `ownerId` + raw input and do the work | React, JSX, CSS |
 | zod schemas for every input | `next/*` imports (`cookies`, `headers`, `revalidatePath`, …) |
-| DB helpers, **all scoped by `owner_id`** | HTTP concerns: status codes, `Request`/`Response` |
+| DB helpers, **all scoped by `owner_id`** | `Request`/`Response` objects (statuses live only in `shared/error-codes.ts`) |
 | Supabase server client (secret key) | Reading cookies or deciding who the owner is |
 | Gemini via the AI SDK: models, prompts, embeddings, generation | UI copy other than error messages |
 | RAG pipeline: extract, chunk, embed, retrieve, citations, URL guard | |
@@ -28,7 +28,7 @@ backend/
   src/
     index.ts              server entry: import "server-only"; re-exports services
     env.ts                zod-validated env, read lazily on first use
-    errors.ts             AppError, ErrorCode, toUserMessage()
+    errors.ts             AppError, toUserMessage(), toErrorBody(), describeError()
     log.ts                one structured line per operation, no secrets or content
     supabase.ts           server client (secret key), created lazily
     db/                   typed query helpers: notebooks, sources, chunks, messages, notes
@@ -45,7 +45,7 @@ backend/
     shared/               client-safe, no server-only imports
       index.ts            entry for "@repo/backend/shared"
       limits.ts           all limits (single source of truth)
-      error-codes.ts      codes + user-facing messages
+      error-codes.ts      codes, HTTP statuses, user-facing messages, ErrorCode
       citations.ts        Citation type + marker parser + citations.test.ts
 ```
 
