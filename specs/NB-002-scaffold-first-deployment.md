@@ -8,7 +8,7 @@ The repo becomes a working app: an empty Next.js shell with the backend package,
 ## Scope
 - **In:** `docs/PROGRESS.md` → M1 tasks 2–10 (task 1, tooling, was NB-001):
   - npm workspaces with `frontend/` (Next.js) and `backend/` (`@repo/backend`), root fan-out scripts.
-  - GitHub Actions CI and the branch protection step for the user.
+  - GitHub Actions CI. `main` stays unprotected (see Notes).
   - shadcn/ui init with the base components, `APP_NAME` placeholder, limits, error codes and `AppError`, model IDs, structured logging, error-to-response helper.
   - Supabase server and browser clients, the owner cookie, `getOwnerId()`, `assertNotebookOwner()`.
   - `GET /api/health`, root README skeleton, first Vercel deployment.
@@ -31,7 +31,7 @@ The repo becomes a working app: an empty Next.js shell with the backend package,
 - **R7** `npm run build` passes **without any env vars set**. Nothing reads env at import time (`backend/README.md` → "Code style").
 
 ### CI (NB-002.2)
-- **R8** `.github/workflows/ci.yml` runs on `pull_request` and on `push` to `main`: checkout, setup-node from `.nvmrc` with npm cache, `npm ci`, then `lint`, `typecheck`, `test`, `build`. One job named `checks`, so branch protection can require it by name.
+- **R8** `.github/workflows/ci.yml` runs on `pull_request` and on `push` to `main`: checkout, setup-node from `.nvmrc` with npm cache, `npm ci`, then `lint`, `typecheck`, `test`, `build`. One job named `checks`.
 - **R9** The workflow has `permissions: contents: read` at the top level, no secrets, and `concurrency` that cancels superseded runs of the same PR. Actions are pinned to a major version tag (`actions/checkout@v5` or current).
 
 ### Foundations (NB-002.3)
@@ -72,7 +72,7 @@ The repo becomes a working app: an empty Next.js shell with the backend package,
 - `backend/`: `package.json`, `tsconfig.json`, `vitest.config.ts`, `test/empty.ts`, `src/index.ts`, `src/env.ts`, `src/errors.ts`, `src/log.ts`, `src/supabase.ts`, `src/db/notebooks.ts`, `src/services/ownership.ts`, `src/services/health.ts`, `src/ai/models.ts`, `src/shared/{index,limits,error-codes}.ts`, plus tests next to the code.
 - Docs, each updated by the subtask that causes the change:
   - NB-002.1: `docs/PROGRESS.md` → "Scaffolding notes" (dependencies arrive per subtask, Node 26, the test and typecheck scripts).
-  - NB-002.2: `infra/README.md` ("CI is planned in M1" becomes the real workflow; step 8 names the `checks` job and the outcome of the branch protection decision).
+  - NB-002.2: `infra/README.md` ("CI is planned in M1" becomes the real workflow; step 8, branch protection, is removed), `docs/PROGRESS.md` (M1 task 3 drops the branch protection sentence; the decisions log gets the row "Branch protection · none; `main` stays unprotected, CI runs on every PR · decided").
   - NB-002.4: `docs/ARCHITECTURE.md` → "Ownership" (R20 changes).
   - NB-002.5: `docs/ARCHITECTURE.md` → "Keep-alive and health" and §10 (status codes, scoped query from R23), `infra/README.md` step 6 (R25).
 
@@ -105,8 +105,7 @@ The repo becomes a working app: an empty Next.js shell with the backend package,
     - The PR itself shows the `checks` job running and passing.
     - The workflow file has top-level `permissions: contents: read` and no secrets.
     - After merge, a push to `main` runs the job too (checked on the next merge).
-    - Branch protection on `main` (PR required, `checks` must pass) as decided in open question 1. This line is finalised once the user answers.
-    - `infra/README.md` no longer says "CI is planned", and step 8 names the `checks` job.
+    - `infra/README.md` no longer says "CI is planned" and has no branch protection step; `docs/PROGRESS.md` has the branch protection row in the decisions log and no longer asks for protection in M1 task 3.
 - [ ] **NB-002.3 · Foundations** (`feat/NB-002.3-foundations`)
   - R10–R17: shadcn, `APP_NAME`, limits, error codes, `AppError`, model IDs, logging, `http.ts`, tests.
   - Acceptance:
@@ -135,9 +134,7 @@ The repo becomes a working app: an empty Next.js shell with the backend package,
     - **After merge, on production:** M1's "Done when" in `docs/PROGRESS.md` holds (production URL loads, `/api/health` → `ok: true, db: true`, cookie set, CI runs on PRs). The user checks it and marks M1 done.
 
 ## Open questions
-1. **Branch protection on a private repo.** The repo is private, and GitHub only offers branch protection and rulesets for private repos on a paid plan (Pro, Team or Enterprise). Which applies?
-   - (a) You have GitHub Pro: protect `main` in NB-002.2 as planned.
-   - (b) You're on Free: make the repo public now (reviewers will see it anyway) and protect `main`.
-   - (c) You're on Free and keep it private until submission: skip protection for now, CI still runs on every PR, and protection is turned on when the repo goes public. M1's "Done when" doesn't require protection, so nothing else changes.
+None.
 
 ## Notes
+- **No branch protection.** The user decided to leave `main` unprotected. On a private repo it would need a paid GitHub plan, and with one person merging it adds little: CI still shows its result on every PR, and WORKFLOW.md already requires a PR and a passing build for every change.
