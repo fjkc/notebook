@@ -39,6 +39,7 @@ The browser uploads PDFs straight to Supabase Storage. Everything else goes thro
 - `frontend/vercel.json` pins functions to `fra1` (next to the Supabase region) and schedules the daily keep-alive cron.
 - All Route Handlers: `export const runtime = "nodejs"` (parsing libraries need Node).
 - Long-running handlers (`/api/sources/[id]/process`, `/api/chat`, `/api/notes*`) set `export const maxDuration = 60`. Verify the current Vercel Hobby maximum; never rely on long timeouts, batch the work instead.
+- Every server Supabase request (queries and Storage) is aborted after `SUPABASE_REQUEST_TIMEOUT_MS` (10 s, `limits.ts`) unless the caller passes its own signal. Long operations, such as PDF downloads and chunk inserts in ingestion, pass a longer one; inserts go in batches.
 - RLS is enabled on every table **with no policies**. Server code uses the secret key, which bypasses RLS; the public key in the browser can't read or write any table. The browser client exists only for `uploadToSignedUrl`.
 
 ### Keep-alive and health

@@ -5,7 +5,12 @@ import { SUPABASE_REQUEST_TIMEOUT_MS } from "./shared/limits";
 
 let client: SupabaseClient | undefined;
 
-/** Aborts a request that hangs (e.g. a paused free-tier project), unless the caller passed its own signal. */
+/**
+ * Default cap for short queries: aborts a request that hangs (e.g. a paused free-tier project).
+ * It covers the whole request including the body, and Storage uses this fetch too. Long operations
+ * (PDF downloads, bulk chunk inserts) must pass their own longer signal, which takes precedence:
+ * `.abortSignal(AbortSignal.timeout(…))` for queries, the `signal` option for Storage.
+ */
 const fetchWithTimeout: typeof fetch = (input, init) =>
   fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(SUPABASE_REQUEST_TIMEOUT_MS) });
 
