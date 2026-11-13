@@ -29,6 +29,8 @@ There are no status fields to keep in sync. To see where things stand, look at t
 
 ## 2. Writing a spec
 
+Run with `/spec [topic]`, or ask in plain words ("let's write the spec for X"). The steps are in `.claude/skills/spec/SKILL.md`.
+
 1. The user names the work package, or asks Claude to propose the next one from `docs/PROGRESS.md`.
 2. Claude reads the relevant section of `docs/ARCHITECTURE.md` and the affected folder READMEs.
 3. Claude branches `docs/NB-XXX-spec` from an up-to-date `main` and writes the spec. Open questions go into the spec's "Open questions" section.
@@ -38,7 +40,7 @@ There are no status fields to keep in sync. To see where things stand, look at t
 
 ## 3. Implementing a subtask
 
-Triggered by "implement NB-003" (take the first unticked subtask) or "implement NB-003.2".
+Run with `/implement NB-003` (takes the first unticked subtask) or `/implement NB-003.2`, or ask in plain words ("implement NB-003.2", "pick up NB-002.1"). The steps are in `.claude/skills/implement/SKILL.md`.
 
 1. **Check:** the spec is merged, its dependencies are done, and the working tree is clean. Otherwise stop and say why.
 2. **Branch** from an up-to-date `main`, named `<type>/NB-<id>[.<sub>]-<1–2 words>`:

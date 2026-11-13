@@ -14,7 +14,7 @@ Each topic lives in exactly one file. Link to it instead of repeating it.
 |---|---|
 | `WORKFLOW.md` | How work happens: specs, branches, commits, PRs. **Follow it for every change.** |
 | `specs/` | One spec per work package (`NB-XXX-name.md`) and the template `_template.md` |
-| `.claude/` | Workflow tooling: skills (`/review`, …) and the review agents |
+| `.claude/` | Workflow tooling: skills (`/spec`, `/implement`, `/review`) and the review agents |
 | `docs/PROGRESS.md` | Roadmap: milestones, their scope and "Done when", decisions log, known limitations |
 | `docs/ARCHITECTURE.md` | System design: infrastructure, data model, pipelines, API surface, errors, prompts |
 | `docs/DESIGN.md` | Design tokens and layout (created in M2) |
