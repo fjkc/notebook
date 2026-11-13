@@ -138,7 +138,8 @@ None.
 
 ## Notes
 - **No branch protection.** The user decided to leave `main` unprotected. On a private repo it would need a paid GitHub plan, and with one person merging it adds little: CI still shows its result on every PR, and WORKFLOW.md already requires a PR and a passing build for every change.
-- NB-002.1: Next 16.4 has no `postcss.config.mjs`; create-next-app wires Tailwind through the `@tailwindcss/turbopack` loader in `next.config.ts` instead. The generated `cacheComponents: true` and `partialPrefetching: true` are kept, so later pages that read cookies need a `<Suspense>` boundary or `connection()`.
+- NB-002.1: Next 16.4 has no `postcss.config.mjs`; create-next-app wires Tailwind through the `@tailwindcss/turbopack` loader in `next.config.ts` instead. The generated `cacheComponents: true` and `partialPrefetching: true` were removed (review round 1): in that mode `runtime` and `dynamic` segment exports are build errors, but R23 and `docs/ARCHITECTURE.md` → "Runtime configuration" require them. Rendering uses the classic model: cookie reads make a page dynamic.
 - NB-002.1: create-next-app now writes `frontend/AGENTS.md` (Next.js agent rules, re-added by `next dev`). It's committed as generated, so `next dev` leaves the tree clean.
 - NB-002.1: the backend also got `@types/node` (dev), needed for its tsconfig `types` and `vitest.config.ts`. TypeScript stays on `^5` in both workspaces (one hoisted version).
 - NB-002.1: create-next-app rejects `.scaffold` as a project name, so it ran in `.scaffold/app`; the Geist fonts were removed with the logos to keep the placeholder neutral and the build free of font downloads.
+- NB-002.1: `next.config.ts` also sets `poweredByHeader: false` and baseline headers for every path (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`), from review round 1.
