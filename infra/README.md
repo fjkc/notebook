@@ -13,7 +13,7 @@ Everything that defines or documents the environment the app runs in: database s
 
 Two infra files live elsewhere because their tools require it:
 - `frontend/vercel.json`: Vercel reads it from the project's root directory (`frontend/`).
-- `.github/workflows/`: GitHub only reads workflows from the repo root. CI is planned in M1.
+- `.github/workflows/ci.yml`: GitHub only reads workflows from the repo root. One job, `checks`, runs `npm ci`, lint, typecheck, test and build on every pull request and every push to `main`, on the Node version from `.nvmrc`. It has read-only permissions and uses no secrets. `main` is not branch-protected (`docs/PROGRESS.md` → "Decisions log"), so a red check doesn't block a merge: don't merge until it's green.
 
 ## Layout
 
@@ -38,7 +38,6 @@ Hosting (Vercel, `fra1`), database and storage (Supabase, Frankfurt), AI (Gemini
 5. **Local env:** `cp frontend/.env.example frontend/.env.local` and fill it in.
 6. **Vercel:** import the GitHub repo, set Root Directory to `frontend`, keep "Include files outside the root directory" enabled, add the env vars for **Production and Preview**, deploy.
 7. **Verify:** `GET https://<deployment>/api/health` returns `{ "ok": true, "db": true }`, and the cron appears under Project → Settings → Cron Jobs.
-8. **Branch protection** (once CI exists): GitHub → Settings → Branches → rule for `main`: require a pull request and require the CI check to pass.
 
 ## Environment variables
 
