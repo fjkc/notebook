@@ -14,3 +14,8 @@ export const MAX_NEW_SOURCES_PER_OWNER_PER_HOUR = 20;
 
 /** Longest pasted text, in characters. */
 export const MAX_PASTED_TEXT_CHARS = 200_000;
+
+// Timeouts (docs/ARCHITECTURE.md → "Runtime configuration").
+
+/** Default cap for one server Supabase request, in ms. Long operations pass their own signal (see supabase.ts). */
+export const SUPABASE_REQUEST_TIMEOUT_MS = 10_000;

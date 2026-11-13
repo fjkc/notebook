@@ -46,6 +46,7 @@ backend/
       index.ts            entry for "@repo/backend/shared"
       limits.ts           all limits (single source of truth)
       error-codes.ts      codes, HTTP statuses, user-facing messages, ErrorCode
+      ids.ts              isUuid() (also used by the proxy)
       citations.ts        Citation type + marker parser + citations.test.ts
 ```
 
