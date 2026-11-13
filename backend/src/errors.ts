@@ -75,19 +75,26 @@ export type ErrorSummary = {
 const MAX_LOG_MESSAGE = 300;
 const MAX_LOG_ISSUES = 5;
 const MAX_CAUSE_DEPTH = 2;
+const MAX_STACK_FRAMES = 10;
 
 /**
- * A bounded summary of any thrown value for the server log. Never copies an error's own properties:
- * provider errors (AI SDK, Supabase) carry request and response bodies with document text.
+ * A bounded summary of any thrown value for the server log. Never copies an error's own properties
+ * (provider errors carry request and response bodies with document text), keeps only the first line
+ * of the message, cut to 300 characters, and only the stack's frame lines.
  */
 export function describeError(error: unknown, depth = 0): ErrorSummary {
   if (!(error instanceof Error)) return { name: typeof error };
 
   const summary: ErrorSummary = {
     name: error.name,
-    message: error.message.slice(0, MAX_LOG_MESSAGE),
-    // The stack's first line repeats the full message; keep only the frames.
-    stack: error.stack?.split("\n").slice(1).join("\n"),
+    // Messages can carry content too (parse errors embed the offending text), often on later lines.
+    message: error.message.split("\n")[0]?.slice(0, MAX_LOG_MESSAGE),
+    // The stack starts with the whole message, which can span several lines; keep only the frames.
+    stack: error.stack
+      ?.split("\n")
+      .filter((line) => /^\s+at /.test(line))
+      .slice(0, MAX_STACK_FRAMES)
+      .join("\n"),
   };
   if (error instanceof ZodError) {
     // zod's message embeds all issues; keep only paths and codes.

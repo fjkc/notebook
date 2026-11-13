@@ -81,6 +81,28 @@ describe("describeError", () => {
     expect(summary.stack).not.toContain("x".repeat(301));
   });
 
+  it("keeps only the first message line and no message text in the stack", () => {
+    const secret = "PRIVATE MODEL OUTPUT ".repeat(40);
+    const error = new Error(`JSON parsing failed: Text: start\n${secret}\nError message: bad`);
+    const summary = describeError(error);
+    expect(summary.message).toBe("JSON parsing failed: Text: start");
+    expect(summary.stack).not.toContain("PRIVATE");
+    expect(summary.stack?.split("\n").every((line) => /^\s+at /.test(line))).toBe(true);
+    expect(JSON.stringify(summary)).not.toContain("PRIVATE");
+  });
+
+  it("keeps a ZodError's issue messages out of the stack", () => {
+    const result = z.object({ title: z.string({ error: "PRIVATE issue text" }) }).safeParse({ title: 1 });
+    const summary = describeError(result.error);
+    expect(JSON.stringify(summary)).not.toContain("PRIVATE");
+  });
+
+  it("caps the number of stack frames", () => {
+    const error = new Error("deep");
+    error.stack = ["Error: deep", ...Array.from({ length: 50 }, (_, i) => `    at frame${i} (file.js:1:1)`)].join("\n");
+    expect(describeError(error).stack?.split("\n")).toHaveLength(10);
+  });
+
   it("logs zod issue paths and codes, never the values", () => {
     const result = z.object({ key: z.string().min(10) }).safeParse({ key: "secret" });
     const summary = describeError(result.error);
