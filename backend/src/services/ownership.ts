@@ -2,8 +2,10 @@ import "server-only";
 import { z } from "zod";
 import * as notebooks from "../db/notebooks";
 import { AppError } from "../errors";
+import { isUuid } from "../shared/ids";
 
-const Uuid = z.uuid();
+// One UUID rule for the whole app (the proxy uses isUuid too); it also rejects the nil UUID.
+const Uuid = z.string().refine(isUuid);
 
 /**
  * Throws NOT_FOUND unless the notebook exists and belongs to the owner. Malformed IDs get

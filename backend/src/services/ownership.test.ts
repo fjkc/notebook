@@ -32,6 +32,10 @@ describe("assertNotebookOwner", () => {
   it("throws NOT_FOUND for a malformed owner ID without querying", async () => {
     await expect(assertNotebookOwner("abc", notebook)).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(assertNotebookOwner(undefined, notebook)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    // The nil UUID is reserved for the health check (R23) and is never a real owner.
+    await expect(assertNotebookOwner("00000000-0000-0000-0000-000000000000", notebook)).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
     expect(findOwned).not.toHaveBeenCalled();
   });
 });
