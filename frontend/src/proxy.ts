@@ -6,13 +6,13 @@ import { OWNER_COOKIE, OWNER_COOKIE_MAX_AGE } from "@/lib/owner-cookie";
 const LOGIN_PATH = "/login";
 
 /**
- * Exact paths that need neither a session nor an owner cookie: the health cron and the favicon.
+ * Exact paths that need neither a session nor an owner cookie: the health cron and the app icons.
  * Checked here rather than in the matcher, because matcher exclusions are prefixes
  * ("api/health" would also skip /api/healthz) and an exact Set lookup is easier to read.
  * Assets the logged-out login page needs (icons, images in public/) must be added here by
  * exact path, or be served from _next/static (next/font, imported images).
  */
-const PUBLIC_PATHS = new Set(["/api/health", "/favicon.ico"]);
+const PUBLIC_PATHS = new Set(["/api/health", "/favicon.ico", "/icon.svg"]);
 
 /**
  * Access gate first, then the owner cookie (docs/ARCHITECTURE.md → "Access gate", "Ownership").
@@ -66,6 +66,6 @@ function withOwnerCookie(request: NextRequest) {
 
 export const config = {
   // Only build assets skip the proxy. Server Actions post to page routes, so they stay covered.
-  // The health cron and the favicon are let through by exact path (PUBLIC_PATHS).
+  // The health cron and the app icons are let through by exact path (PUBLIC_PATHS).
   matcher: ["/((?!_next/static|_next/image).*)"],
 };

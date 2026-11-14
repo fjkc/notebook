@@ -168,21 +168,21 @@ Only `http:`/`https:`, default ports only. Resolve the hostname and reject loopb
 
 ### Rendering
 - `backend/src/shared/citations.ts` (client-safe) finds markers `[1]`, `[1, 3]`, `[1][3]`, ignores numbers that aren't in the citation map, and returns segments of text and citation refs.
-- Answers render as Markdown (`react-markdown` + `remark-gfm`) with markers replaced by citation chips. A chip opens a popover with source title, page and excerpt, and highlights the source in the sources area.
+- Answers render as Markdown (`react-markdown` + `remark-gfm`) with markers replaced by citation chips. Pressing a citation hook opens the Reader (source title, page and the excerpt with the marker highlight; a side pane on desktop, a sheet on smaller screens) and highlights the source's chip on the Shelf, instead of a popover (`docs/DESIGN.md` → "Layout"). It uses only the data in `Citation`.
 - When no sources are ready, the chat input is disabled and the empty state explains how to add a source.
 - Suggested questions appear as clickable chips when the chat is empty.
 - Users can include/exclude sources for chat (client state, sent as `sourceIds`).
 
 ## 8. Generated notes (nice-to-have)
 
-`POST /api/notes` with `{ notebookId, kind }` where kind is `briefing | faq | study_guide`. Input: all ready source summaries plus the top 20 chunks retrieved for a kind-specific query. Output: Markdown, saved in `notes`. Listed in the notes area, newest first; viewable and deletable. Feature names in the UI are our own (decided with the design).
+`POST /api/notes` with `{ notebookId, kind }` where kind is `briefing | faq | study_guide`. Input: all ready source summaries plus the top 20 chunks retrieved for a kind-specific query. Output: Markdown, saved in `notes`. Listed in the notes area, newest first; viewable and deletable. The names in the UI are in `docs/DESIGN.md` → "Names in the UI".
 
 ## 9. Audio conversation (stretch goal)
 
 1. Generate a script with structured output: `{ title, lines: { speaker: "A" | "B", text }[] }`, ~700–900 words, two hosts with invented first names, grounded in summaries + top chunks.
 2. Voice it with Gemini's multi-speaker TTS model. Use the AI SDK if it supports Gemini TTS in the installed version, otherwise call the Gemini REST API directly from the server.
 3. The response is raw PCM (24 kHz, 16-bit, mono): wrap it in a WAV header, upload to the `audio` bucket, save a `notes` row with `kind = 'audio'`, the script as `content` and `audio_path`.
-4. The notes list shows an audio player using a short-lived signed URL created server-side.
+4. The notes list shows an audio player using a short-lived signed URL created server-side. Its name in the UI is in `docs/DESIGN.md` → "Names in the UI".
 5. TTS limits on the free tier are tight: show a clear message on 429 and keep the script short.
 
 ## 10. API surface
