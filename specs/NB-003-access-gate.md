@@ -21,7 +21,7 @@ Only people who have the password can use the deployed app. The author emails th
 
 ## Requirements
 
-### Backend access module (NB-003.1)
+### Backend access module
 - **R1** **Env.** Two new server-only variables, read lazily and validated with zod in `backend/src/access/env.ts` (`getAccessEnv()`, same pattern as NB-002 R18):
   - `APP_PASSWORD`: at least 24 characters, **generated**, never chosen by hand (`openssl rand -base64 24`, 32 characters).
   - `SESSION_SECRET`: at least 32 characters (`openssl rand -base64 32`).
@@ -40,12 +40,12 @@ Only people who have the password can use the deployed app. The author emails th
   - The proxy can't import `@repo/backend`, which starts with `import "server-only"` (meant for React Server Components, not for the proxy). So this entry deliberately **doesn't** import `server-only`.
   - It imports nothing from `next/*` and nothing from server-only modules. Its only env reads are the two variables in `env.ts`.
   - Rules for importing it: only `proxy.ts`, `lib/owner.ts` and the login page and action. Never a Client Component.
-- **R6** **Rule 2 and the backend README.** This subtask introduces the exception, so it also changes the rule that it would otherwise break:
+- **R6** **Rule 2 and the backend README.** This spec introduces the exception, so it also changes the rule that it would otherwise break:
   - **CLAUDE.md rule 2** reads: "`GOOGLE_GENERATIVE_AI_API_KEY` and `SUPABASE_SECRET_KEY` are only read in `backend/`, in modules that start with `import \"server-only\"`. `APP_PASSWORD` and `SESSION_SECRET` are only read in `backend/src/access/env.ts`, which the proxy imports and therefore can't be `server-only`; they never get a `NEXT_PUBLIC_` prefix and the module is never imported by a Client Component. Never commit `.env.local`, never log secrets, never send them to the client."
   - **`backend/README.md`**: the layout gets `access/`, and "Package entry points" gets `./access` with the import rules from R5.
 - **R7** **Tests** (vitest, `backend/src/access/`): token round trip, expired token, tampered signature, wrong version, malformed input, a token signed before a password change is rejected, `passwordMatches` for equal, different and different-length inputs, `getAccessEnv()` returns `null` for missing and too-short values, and `safeNextPath` for every case in R4.
 
-### Frontend gate (NB-003.2)
+### Frontend gate
 - **R8** **Brute force.** No attempt counter. The real protection is the password's entropy (R1: 24 random bytes' worth of base64 is far beyond guessing). A failed attempt waits 1 second before answering, which slows sequential guessing only; parallel requests aren't slowed. Only the free-tier quota is at stake. The decision and its upgrade path (a per-IP counter in Postgres) go into `docs/ARCHITECTURE.md`.
 - **R9** **Login page** `/login`:
   - Rendered per request (`export const dynamic = "force-dynamic"`, and it awaits `searchParams`), so the "set up" check reflects the running deployment's env, not the build's.
@@ -69,7 +69,7 @@ Only people who have the password can use the deployed app. The author emails th
     - Any other method to a page: `401` with the same error shape.
   - The owner cookie logic (NB-002 R20) runs on **every request the proxy lets through**: requests with a valid session, and `/login` including the `logIn` action. So the page rendered right after login already has an owner, even when Next.js renders the redirect target inside the action's response. An `owner_id` without a session grants nothing, because `getOwnerId()` also requires a session (R12). Requests that are redirected to `/login` or rejected with `401` get no owner cookie.
 - **R12** **Second layer.** `getOwnerId()` (`frontend/src/lib/owner.ts`) also verifies the `access` cookie with `@repo/backend/access` and throws `AppError("UNAUTHORIZED")` without a valid session. Every Server Action except `logIn`, every Route Handler except health, and every page that loads owner data calls it, so they stay protected even if the matcher changes (the Next.js proxy docs recommend checking inside each Server Function, not only in the proxy).
-- **R13** **Docs** (in NB-003.2, except rule 2 and the backend README, which are R6):
+- **R13** **Docs** (rule 2 and the backend README are covered by R6):
   - `CLAUDE.md` project paragraph: reviewers use the live deployment "with a password the author sends them", instead of "without signing up".
   - `docs/ARCHITECTURE.md`: the "No login, cookie-based ownership" row in "Key decisions" becomes "Shared password gate, cookie-based ownership" (why: protect the free-tier quota; trade-off: one password for all, notebooks still tied to one browser). The diagram's proxy line, "Ownership", and a new "Access gate" section describe R1–R12 and R8's upgrade path.
   - `docs/PROGRESS.md`: M1 gets the task "Access gate (NB-003)", its "Done when" adds "without the password, the production URL shows only the login page", M3's "Done when" becomes "… opening one of your notebook URLs in a private window and logging in there gives a 404" (without logging in, the gate shows the login page, so the ownership check can't be seen), and the Decisions log row "Auth" becomes "Shared password gate + anonymous `owner_id` cookie".
@@ -88,29 +88,25 @@ Only people who have the password can use the deployed app. The author emails th
 - **Redirecting Server Actions to `/login`:** a `307` keeps the POST and re-sends the action to a page where it doesn't exist, which breaks the UI. Passing them through to `getOwnerId()` gives the normal error message.
 
 **Files**
-- NB-003.1: `backend/src/access/{env,session,password,next-path,index}.ts` and tests, `backend/package.json` (`./access` export), `backend/README.md`, `CLAUDE.md` rule 2.
-- NB-003.2: `frontend/src/proxy.ts`, `frontend/src/lib/owner.ts`, `frontend/src/app/login/{page,actions,login-form}.tsx`, and the docs in R13.
+- Backend: `backend/src/access/{env,session,password,next-path,index}.ts` and tests, `backend/package.json` (`./access` export), `backend/README.md`, `CLAUDE.md` rule 2.
+- Frontend and docs: `frontend/src/proxy.ts`, `frontend/src/lib/owner.ts`, `frontend/src/app/login/{page,actions,login-form}.tsx`, and the docs in R13.
 
 **Cookies.** Two independent cookies: `access` (proves the password was entered, 30 days) and `owner_id` (whose notebooks, 1 year, from NB-002). Notebooks stay tied to the browser, as before.
 
-**Size.** NB-003.1 is about 200 lines of code and tests plus small doc edits. NB-003.2 is about 200 lines of code plus the doc edits in R13. Both stay under the ~400-line guideline (`WORKFLOW.md` §1).
+**Size.** About 400 lines of code and tests plus the doc edits in R13, in one PR (`WORKFLOW.md` §1). It was first cut into two subtasks; NB-004 merged them into one PR.
 
 **Env.** Two new variables (R1). No schema change, no new dependency (Web Crypto and `node:crypto`'s `timingSafeEqual` are built in).
 
-## Subtasks
+## Implementation
 
-- [ ] **NB-003.1 · Access module** (`feat/NB-003.1-access-module`)
-  - R1–R7: the backend module and its tests, the `./access` export, CLAUDE.md rule 2, backend README. No behaviour changes yet; nothing imports the module.
+- [ ] **Implemented** (`feat/NB-003-access-gate`)
+  - R1–R13 in one PR: the backend access module and its tests, the `./access` export, the login page and action, the gate in the proxy, the check in `getOwnerId()`, CLAUDE.md rule 2 and the docs in R13.
+  - **User step before merge:** add `APP_PASSWORD` and `SESSION_SECRET` in Vercel for **Production and Preview**, then redeploy. The gate fails closed, so merging without them locks everyone out of production. The PR's "Deployment" section says this, and `/implement` asks for it in one message when opening the PR.
   - Acceptance:
     - CI passes, including every test case listed in R7.
     - `backend/src/access/` imports nothing from `next/*`, from `server-only` or from modules outside `access/` that import it (`grep -rn "server-only\|from \"next" backend/src/access` finds nothing).
     - The only `process.env` reads in `backend/src/access/` are the two variables in `env.ts`.
     - CLAUDE.md rule 2 and `backend/README.md` match R6.
-- [ ] **NB-003.2 · Login page and gate** (`feat/NB-003.2-login-gate`)
-  - R8–R13: login page and action, gate in the proxy, check in `getOwnerId()`, docs.
-  - **User step before merge:** add `APP_PASSWORD` and `SESSION_SECRET` in Vercel for **Production and Preview**, then redeploy. The gate fails closed, so merging without them locks everyone out of production. The PR's "Deployment" section says this, and `/implement` asks for it in one message when opening the PR.
-  - Acceptance:
-    - CI passes.
     - Locally, without `APP_PASSWORD` in `.env.local`: every page redirects to `/login`, which says "Login isn't set up yet.", and the server log names the missing variable.
     - Locally, with both variables set, in a fresh private window:
       - `/` redirects to `/login?next=%2F`.
@@ -132,4 +128,4 @@ Only people who have the password can use the deployed app. The author emails th
 None. Login type and placement were decided by the user (one shared password, separate spec after NB-002).
 
 ## Notes
-- The first deployment in NB-002.5 is open until NB-003.2 merges. It's an empty shell with no Gemini calls, so nothing can use up the quota in that window.
+- The first deployment in NB-002.5 is open until NB-003 merges. It's an empty shell with no Gemini calls, so nothing can use up the quota in that window.

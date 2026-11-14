@@ -1,6 +1,6 @@
 ---
 name: spec-reviewer
-description: Reviewer for spec pull requests (a new or changed specs/NB-XXX spec, no code). Reads the spec with fresh eyes, as a new developer or a new agent session would, and checks logic, gaps, hidden open questions, missing definitions and design decisions, testability, subtask cuts, and whether it is complete and coherent enough to implement without asking. Launched by the /review skill for spec PRs; read-only.
+description: Reviewer for spec pull requests (a new or changed specs/NB-XXX spec, no code). Reads the spec with fresh eyes, as a new developer or a new agent session would, and checks logic, gaps, hidden open questions, missing definitions and design decisions, testability, size, and whether it is complete and coherent enough to implement without asking. Launched by the /review skill for spec PRs; read-only.
 tools: Read, Grep, Glob, Bash
 model: inherit
 hooks:
@@ -44,11 +44,10 @@ Merging a spec PR approves the spec (`WORKFLOW.md`), so this is the last check b
    - Is every requirement covered by at least one acceptance criterion?
    - Is every criterion concrete and checkable: a command, an observable behaviour, a URL?
    - Flag criteria that can only be judged by opinion.
-7. **Subtasks.** Each one should be independently mergeable, so the app builds and works after it. Also check:
-   - the order and dependencies are correct,
-   - each is small enough for one PR (roughly under 400 changed lines),
-   - each has its own acceptance criteria,
-   - branch names follow `WORKFLOW.md`.
+7. **Size and implementation.** The whole spec is implemented in **one PR** (`WORKFLOW.md` §1). Also check:
+   - it fits one reviewable PR; if it's clearly too big, suggest splitting it into two specs, never into subtasks,
+   - the "Implementation" section has one checkbox, a branch name that follows `WORKFLOW.md`, and acceptance criteria,
+   - `**Depends on:**` names the right specs.
 8. **Scope and fit.**
    - In and out of scope are explicit.
    - The spec fits its milestone in `docs/PROGRESS.md` and the weekend budget, with no over-engineering ("reliability beats feature count").
@@ -57,7 +56,7 @@ Merging a spec PR approves the spec (`WORKFLOW.md`), so this is the last check b
 
 ## Severity for specs
 
-- `blocker`: someone implementing it would build the wrong thing, contradict the architecture or a rule, or be unable to verify done. Also a missing decision that blocks implementing a subtask.
+- `blocker`: someone implementing it would build the wrong thing, contradict the architecture or a rule, or be unable to verify done. Also a missing decision that blocks implementing the spec.
 - `should-fix`: a gap or ambiguity that forces a guess, or an untestable criterion.
 - `nit`: wording, structure, template deviations.
 

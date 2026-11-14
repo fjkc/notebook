@@ -3,7 +3,7 @@
 **Spec first, then code.** Every change starts as a spec. Specs and code both reach `main` only through pull requests, which is where review, comments and approval happen. Claude Code follows this file exactly.
 
 ```
-Spec PR ──► review, comments, fixes ──► merged = approved ──► one PR per subtask ──► /review ──► fixes ──► merged = done
+Spec PR ──► review, comments, fixes ──► merged = approved ──► one PR for the spec ──► /review ──► fixes ──► merged = done
 (Claude)    (user and review agents)    (user)                (Claude)               (agents)    (Claude)  (user)
 ```
 
@@ -11,8 +11,7 @@ Spec PR ──► review, comments, fixes ──► merged = approved ──► 
 
 - **Spec proposed:** its spec PR is open.
 - **Spec approved:** its spec PR is merged.
-- **Subtask done:** its checkbox in the spec is ticked. The implementing PR ticks it, so it becomes true when that PR merges.
-- **Spec done:** all subtask checkboxes are ticked.
+- **Spec done:** its "Implemented" checkbox is ticked. The implementing PR ticks it, so it becomes true when that PR merges.
 - **Milestone done:** `docs/PROGRESS.md` marks it, once its "Done when" is checked on production.
 
 There are no status fields to keep in sync. To see where things stand, look at the specs and `gh pr list`.
@@ -22,10 +21,10 @@ There are no status fields to keep in sync. To see where things stand, look at t
 - One file per spec in `specs/`, named `NB-XXX-short-name.md`, written from `specs/_template.md`.
 - IDs are `NB-` plus a sequential three-digit number. They're never reused.
 - A spec covers one or more tasks of a milestone in `docs/PROGRESS.md`. It references `docs/ARCHITECTURE.md` instead of repeating it.
-- **Subtasks:** every spec has at least one subtask `NB-XXX.1`, so every PR has a checkbox to tick and a title scope `(NB-XXX.n)` that `/review` can tell apart from a spec PR. A spec that's too big for one easy-to-review PR is split into `NB-XXX.1`, `NB-XXX.2`, … All subtasks are written with the spec and reviewed together. Each subtask:
-  - is independently mergeable, so the app builds and works after each one,
-  - has its own acceptance criteria,
-  - becomes exactly one branch and one PR (roughly under 400 changed lines, excluding lockfiles and generated files).
+- **One spec, one implementation PR.** There are no subtasks. The spec's "Implementation" section has one checkbox with the branch name and the acceptance criteria, and the implementing PR ticks it.
+  - The app builds and works after the PR merges.
+  - If a work package is clearly too big for one reviewable PR, it becomes two specs, each with its own ID, not subtasks.
+  - Specs before NB-004 (NB-001, NB-002, NB-003's original draft) used subtasks `NB-XXX.n`; their history stays as it is.
 
 ## 2. Writing a spec
 
@@ -38,35 +37,35 @@ Run with `/spec [topic]`, or ask in plain words ("let's write the spec for X"). 
 5. The user comments on the PR, and `/review` adds the spec-reviewer's findings. Claude answers by pushing fix commits to the same branch.
 6. **The user merges the spec PR. That is the approval.** "Open questions" must be empty by then.
 
-## 3. Implementing a subtask
+## 3. Implementing a spec
 
-Run with `/implement NB-003` (takes the first unticked subtask) or `/implement NB-003.2`, or ask in plain words ("implement NB-003.2", "pick up NB-002.1"). The steps are in `.claude/skills/implement/SKILL.md`.
+Run with `/implement NB-003`, or ask in plain words ("implement NB-003", "pick up NB-005"). The steps are in `.claude/skills/implement/SKILL.md`.
 
 1. **Check:** the spec is merged, its dependencies are done, and the working tree is clean. Otherwise stop and say why.
-2. **Branch** from an up-to-date `main`, named `<type>/NB-<id>[.<sub>]-<1–2 words>`:
+2. **Branch** from an up-to-date `main`, named as in the spec's "Implementation" line, otherwise `<type>/NB-<id>-<1–2 words>`:
    ```bash
    git switch main && git pull --ff-only
-   git switch -c feat/NB-003.2-db-client
+   git switch -c feat/NB-003-access-gate
    ```
    The type is `feat`, `fix` or `docs`, matching the spec.
-3. **Implement** exactly the subtask's scope. Anything else that comes up goes into the spec as a note or a follow-up, not into this branch.
-4. **Verify:** `npm run lint && npm run typecheck && npm test && npm run build`, then the subtask's acceptance criteria one by one. Fix every failure.
+3. **Implement** exactly the spec's scope. Anything else that comes up goes into the spec as a note or a follow-up, not into this branch.
+4. **Verify:** `npm run lint && npm run typecheck && npm test && npm run build`, then the spec's acceptance criteria one by one. Fix every failure.
 5. **Update in the same branch:**
-   - Tick the subtask in the spec. Add deviations under "Notes".
+   - Tick "Implemented" in the spec. Add deviations under "Notes".
    - Update `docs/ARCHITECTURE.md` or a folder README if the design changed.
 6. **Commit** with Conventional Commits and the spec ID as scope, one logical step per commit:
    ```
-   feat(NB-003.2): add server-side supabase client
+   feat(NB-003): add the session token helpers
    ```
 7. **Push and open the PR** (section 4), report the link, then stop. Claude never merges.
 
-After review (yours, or the agents' via `/review`, see section 5): when asked, Claude triages the findings with the loop gate (section 5), pushes fixes as commits to the same branch (no force-push unless asked), and replies in every thread: what was fixed, why something won't be fixed, or a question for you. After a merge, Claude switches back to `main`, pulls, and waits for the next instruction. When the last subtask of a milestone merges, Claude tells the user to check production against the milestone's "Done when".
+After review (yours, or the agents' via `/review`, see section 5): when asked, Claude triages the findings with the loop gate (section 5), pushes fixes as commits to the same branch (no force-push unless asked), and replies in every thread: what was fixed, why something won't be fixed, or a question for you. After a merge, Claude switches back to `main`, pulls, and waits for the next instruction. When the last spec of a milestone merges, Claude tells the user to check production against the milestone's "Done when".
 
 ## 4. Pull requests
 
 ```bash
 git push -u origin <branch>
-gh pr create --base main --assignee @me --title "<type>(NB-XXX[.n]): <what, in plain words>" --body-file <tmp>
+gh pr create --base main --assignee @me --title "<type>(NB-XXX): <what, in plain words>" --body-file <tmp>
 ```
 
 - **Assignee:** `--assignee @me` assigns the user, because PRs are opened with their account. A reviewer can't be set, because GitHub rejects review requests to a PR's own author. If a collaborator is added later, add `--reviewer <login>`.
@@ -76,7 +75,7 @@ gh pr create --base main --assignee @me --title "<type>(NB-XXX[.n]): <what, in p
   - **No tables.** Use headlines, bullets and indented sub-bullets.
 
 ```markdown
-📄 **Spec:** [NB-003 · Database setup](https://github.com/fjkc/notebook/blob/feat/NB-003.2-db-client/specs/NB-003-database-setup.md) → subtask **NB-003.2**
+📄 **Spec:** [NB-003 · Access gate](https://github.com/fjkc/notebook/blob/feat/NB-003-access-gate/specs/NB-003-access-gate.md)
 
 ## 📋 Summary
 Two to four sentences: what this PR does and why, in plain language.
@@ -119,7 +118,7 @@ Two to four sentences: what this PR does and why, in plain language.
 Triggered by `/review [PR number] [--security | --no-security]`, or by asking "review PR 5". The steps are in `.claude/skills/review/SKILL.md`.
 
 - **Who reviews:**
-  - **Spec PRs** (spec ID without subtask in the title, Markdown only): `spec-reviewer` alone, plus `security-audit` with `--security`. It reads the spec as a new developer or agent session would, and checks logic, gaps, hidden open questions, missing definitions and decisions, testability and the subtask cuts.
+  - **Spec PRs** (title `docs(NB-XXX): spec for …`, Markdown only): `spec-reviewer` alone, plus `security-audit` with `--security`. It reads the spec as a new developer or agent session would, and checks logic, gaps, hidden open questions, missing definitions and decisions, testability and size.
   - **Code PRs:**
     - `reviewer` always runs: spec and acceptance criteria, correctness, simplification, architecture, integration and deployment, project rules, and a security triage.
     - `bugfinder` always runs: races, edge cases, async and error handling, framework pitfalls.
@@ -147,8 +146,8 @@ For every finding that isn't fixed, Claude replies in its thread with the **reas
 
 ## 6. Rules
 
-- **One subtask = one branch = one PR.** Never mix subtasks or unrelated changes.
+- **One spec = one branch = one PR.** Never mix specs or unrelated changes.
 - **No direct commits to `main`.** Everything goes through a PR, including docs.
-- **Bugs get a spec too.** It can be short (Goal, Requirements, one subtask `NB-XXX.1` with its acceptance criteria) with type `fix`, so every change traces back to an ID.
+- **Bugs get a spec too.** It can be short (Goal, Requirements, Implementation with its acceptance criteria) with type `fix`, so every change traces back to an ID.
 - **The spec is the contract.** If implementation shows the spec is wrong, stop, explain, and propose a change to the spec. Continue once the user agrees.
 - **Green and deployable.** Every PR passes all checks and leaves `main` deployable. Vercel builds a preview for every PR, so use it for anything UI-related.

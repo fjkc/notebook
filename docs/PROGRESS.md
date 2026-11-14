@@ -121,7 +121,7 @@ Every other dependency is installed by the subtask that first uses it (NB-002 �
 | Regions | Supabase Frankfurt, Vercel fra1 | decided |
 | Repo layout | npm workspaces: `frontend/` (deployed), `backend/` (`@repo/backend` library), `infra/`; one Vercel deployment | decided |
 | Branch protection | None; `main` stays unprotected, CI runs on every PR | decided |
-| Workflow | Spec-driven; specs and code reach `main` only via PRs; merging a spec PR approves it | decided |
+| Workflow | Spec-driven; specs and code reach `main` only via PRs; merging a spec PR approves it; one implementation PR per spec, no subtasks (from NB-004) | decided |
 | App name | – | open (M2) |
 | Design | – | open (M2) |
 
