@@ -117,9 +117,6 @@ The app has its own name, Notehooked, and its own look: a documented design (`do
     - **After merge, on production:** the home page matches DESIGN.md in light and dark mode and on mobile (M2's "Done when").
 
 ## Open questions
-1. **Accent colour:** plum `#7A2E63` (recommended, as specified), petrol `#1F5F74`, or forest `#2F5D3A`? The contrast numbers above are for plum; another choice gets recomputed.
-2. **Theme toggle** in the top bar (recommended), or follow the system setting only?
-3. **`/design` reference page:** keep it in the app (recommended), or leave it out and check the design on the home and login pages only?
-4. **UI names** (R7: Shelf, Ask, Reader, Takeaways; Brief, Q&A, Study sheet, Spoken recap): fine as they are, or change any?
+None. Decided by the user (2026-11-14): plum `#7A2E63` as the accent, the theme toggle in the top bar, the `/design` reference page stays, and the UI names in R7 as written.
 
 ## Notes
