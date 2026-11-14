@@ -84,6 +84,10 @@ Users can create, rename and delete their own notebooks, see them on the home pa
 
 **Why the notebook route is outside `(app)`:** the `(app)` layout renders the plain `TopBar`, and a nested layout can't replace its parent's. The notebook page renders `TopBar` itself with its title and menu. URLs don't change.
 
+**Decided with the user**
+- Rename and delete only in the notebook's top bar menu, so the home list stays a plain list of links.
+- A cap of 50 notebooks per owner (R2): notebooks cost no Gemini quota, but the cap keeps the demo database tidy.
+
 **Rejected alternatives**
 - **A `loading.tsx` skeleton:** it would start streaming before `notFound()`, so foreign IDs would get a 200 with `noindex` instead of the 404 that ARCHITECTURE §4 and M3's "Done when" promise.
 - **Redirecting from `deleteNotebook` on the server:** the client code after the action never runs, so it can't show the toast; a search-param or cookie "flash" would be extra machinery for one message.
@@ -115,8 +119,7 @@ Users can create, rename and delete their own notebooks, see them on the home pa
     - **After merge, on production (M3 "Done when"):** create, rename and delete work, and opening one of your notebook URLs in a private window and logging in there gives a 404.
 
 ## Open questions
-1. **Where rename and delete live:** only in the notebook's top bar menu (this spec), or also as a menu on each home row? Recommended: only the notebook page, so the home list stays a plain list of links.
-2. **Notebook cap:** add `MAX_NOTEBOOKS_PER_OWNER = 50` (R2)? Notebooks cost no Gemini quota, but a cap keeps the demo database tidy. Recommended: yes.
+None. Decided by the user (2026-11-14): rename and delete live only in the notebook's top bar menu, and `MAX_NOTEBOOKS_PER_OWNER` is 50.
 
 ## Notes
 Deviations found during implementation, one line each.
