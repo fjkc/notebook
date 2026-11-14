@@ -36,7 +36,12 @@ Hosting (Vercel, `fra1`), database and storage (Supabase, Frankfurt), AI (Gemini
 3. **Schema:** in the Supabase SQL editor, run `infra/supabase/migrations/0001_init.sql` once. Check for the five tables (`notebooks`, `sources`, `chunks`, `messages`, `notes`), the `match_chunks` function and the two buckets.
 4. **Keys:** copy the project URL, the publishable (or anon) key and the secret (or service_role) key.
 5. **Local env:** `cp frontend/.env.example frontend/.env.local` and fill it in.
-6. **Vercel:** import the GitHub repo, set Root Directory to `frontend`, keep "Include files outside the root directory" enabled, add the env vars for **Production and Preview**, deploy.
+6. **Vercel:** import the GitHub repo and set:
+   - **Root Directory:** `frontend`. Keep "Include files outside the root directory in the Build Step" enabled, because the app imports `backend/`.
+   - **Framework preset:** Next.js (detected). Leave Build, Output and Install Command on their defaults: Vercel detects the npm workspace and installs from the repo root with the root `package-lock.json`.
+   - **Node.js version:** comes from `engines.node` (`26.x`) in `frontend/package.json`, which overrides the project setting. The build log shows it.
+   - **Environment variables:** all four from `frontend/.env.example`, for **Production and Preview**.
+   - Deploy.
 7. **Verify:** `GET https://<deployment>/api/health` returns `{ "ok": true, "db": true }`, and the cron appears under Project → Settings → Cron Jobs.
 
 ## Environment variables

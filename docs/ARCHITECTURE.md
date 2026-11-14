@@ -43,7 +43,7 @@ The browser uploads PDFs straight to Supabase Storage. Everything else goes thro
 - RLS is enabled on every table **with no policies**. Server code uses the secret key, which bypasses RLS; the public key in the browser can't read or write any table. The browser client exists only for `uploadToSignedUrl`.
 
 ### Keep-alive and health
-Supabase pauses free projects after a period of inactivity, and reviewers may open the app days after submission. The Vercel cron calls `GET /api/health` once a day; the route runs one cheap query (`select id from notebooks limit 1`) and returns `{ ok, db, timestamp }`. The route is public and exposes nothing sensitive.
+Supabase pauses free projects after a period of inactivity, and reviewers may open the app days after submission. The Vercel cron calls `GET /api/health` once a day. The route runs one cheap query with a 5-second timeout (`HEALTH_CHECK_TIMEOUT_MS`), scoped like every other query to an owner no one has: `select id from notebooks where owner_id = '00000000-0000-0000-0000-000000000000' limit 1` (the nil UUID, which `isUuid` rejects). It returns `{ ok, db, timestamp }` with `Cache-Control: no-store`: `200` with `ok: true, db: true` when the database answers, `503` with `ok: false, db: false` when the query fails, times out or env is missing. The reason is only logged. The route is public and exposes nothing sensitive: no error details, keys or URLs.
 
 ### Observability
 Each Route Handler logs one structured line per request: route, first 8 chars of `owner_id`, duration in ms, outcome or error code. Never log secrets or document contents. Production debugging uses Vercel's runtime logs.
@@ -193,7 +193,7 @@ Only `http:`/`https:`, default ports only. Resolve the hostname and reject loopb
 
 | Method & path | Body | Response |
 |---|---|---|
-| `GET /api/health` | – | `{ ok, db, timestamp }` |
+| `GET /api/health` | – | `{ ok, db, timestamp }`: `200` when the database answers, `503` otherwise (no error body) |
 | `POST /api/sources/upload-url` | `{ notebookId, fileName, fileSize }` | `{ sourceId, path, token }` |
 | `POST /api/sources/[id]/process` | – | `{ status, error? }` |
 | `POST /api/chat` | `{ notebookId, messages, sourceIds? }` | UI message stream |

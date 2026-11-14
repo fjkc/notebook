@@ -32,7 +32,7 @@ backend/
     log.ts                one structured line per operation, no secrets or content
     supabase.ts           server client (secret key), created lazily
     db/                   typed query helpers: notebooks, sources, chunks, messages, notes
-    services/             notebooks, sources, chat, notes: one module per area
+    services/             notebooks, sources, chat, notes, health: one module per area
     ai/
       models.ts           the only place with Gemini model IDs
       prompts.ts          the only place with prompts
