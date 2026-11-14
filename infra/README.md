@@ -35,12 +35,16 @@ Hosting (Vercel, `fra1`), database and storage (Supabase, Frankfurt), AI (Gemini
 2. **Supabase:** create a project in Frankfurt and store the DB password in a password manager.
 3. **Schema:** in the Supabase SQL editor, run `infra/supabase/migrations/0001_init.sql` once. Check for the five tables (`notebooks`, `sources`, `chunks`, `messages`, `notes`), the `match_chunks` function and the two buckets.
 4. **Keys:** copy the project URL, the publishable (or anon) key and the secret (or service_role) key.
-5. **Local env:** `cp frontend/.env.example frontend/.env.local` and fill it in.
+5. **Local env:** `cp frontend/.env.example frontend/.env.local` and fill it in. Generate the two access gate values, never choose them by hand:
+   ```bash
+   openssl rand -base64 24   # APP_PASSWORD (the password you send to reviewers)
+   openssl rand -base64 32   # SESSION_SECRET
+   ```
 6. **Vercel:** import the GitHub repo and set:
    - **Root Directory:** `frontend`. Keep "Include files outside the root directory in the Build Step" enabled, because the app imports `backend/`.
    - **Framework preset:** Next.js (detected). Leave Build, Output and Install Command on their defaults: Vercel detects the npm workspace and installs from the repo root with the root `package-lock.json`.
    - **Node.js version:** comes from `engines.node` (`26.x`) in `frontend/package.json`, which overrides the project setting. The build log shows it.
-   - **Environment variables:** all four from `frontend/.env.example`, for **Production and Preview**.
+   - **Environment variables:** all six from `frontend/.env.example`, for **Production and Preview**. Without `APP_PASSWORD` and `SESSION_SECRET` nobody can log in. Env changes only apply to new deployments: redeploy after changing one.
    - Deploy.
 7. **Verify:** `GET https://<deployment>/api/health` returns `{ "ok": true, "db": true }`, and the cron appears under Project → Settings → Schedules (formerly "Cron Jobs"). Vercel lists it only after a production deployment.
 
@@ -52,6 +56,8 @@ Hosting (Vercel, `fra1`), database and storage (Supabase, Frankfurt), AI (Gemini
 | `NEXT_PUBLIC_SUPABASE_URL` | public | backend + browser upload client |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | public | browser upload client only |
 | `SUPABASE_SECRET_KEY` | server only | backend (bypasses RLS) |
+| `APP_PASSWORD` | server only | `backend/src/access/env.ts` (access gate) |
+| `SESSION_SECRET` | server only | `backend/src/access/env.ts` (signs the session cookie) |
 
 `frontend/.env.example` is the template and is committed. `.env.local` is git-ignored. Set every variable in Vercel for both Production and Preview.
 
@@ -77,3 +83,4 @@ Hosting (Vercel, `fra1`), database and storage (Supabase, Frankfurt), AI (Gemini
 | Every AI call → "Lots of requests right now" | Gemini free-tier quota exhausted. Wait, or check the quota page in AI Studio. |
 | PDF upload fails | Bucket `sources` exists and is private, and the file is under 10 MB. |
 | Preview works, production doesn't | Env vars missing in the Production scope. |
+| Nobody can log in, or "Login isn't set up yet." | Check `APP_PASSWORD` and `SESSION_SECRET` in the environment's scope, then redeploy. |

@@ -8,7 +8,7 @@ Follow `infra/README.md` → "Setup from scratch", steps 1–5: Gemini key, Supa
 
 **Done when:** `frontend/.env.local` is filled in and the schema is applied.
 
-## M1 · Tooling, scaffold and first deployment · done
+## M1 · Tooling, scaffold and first deployment · open
 
 1. **Tooling (next up):** project slash commands so the workflow runs the same way every time:
    - `/spec`: propose or write the next spec on a `docs/NB-XXX-spec` branch and open the spec PR.
@@ -23,8 +23,9 @@ Follow `infra/README.md` → "Setup from scratch", steps 1–5: Gemini key, Supa
 8. `GET /api/health`.
 9. README skeleton: title placeholder, one-paragraph description, "inspired by Google's NotebookLM" note, setup steps.
 10. **User:** import the repo in Vercel (`infra/README.md` → step 6) and deploy.
+11. Access gate (NB-003): one shared password, login page, gate in the proxy and in `getOwnerId()`.
 
-**Done when:** the production URL loads, `/api/health` returns `ok: true` and `db: true` in production, the `owner_id` cookie is set, and CI runs on PRs.
+**Done when:** the production URL loads, `/api/health` returns `ok: true` and `db: true` in production, the `owner_id` cookie is set, CI runs on PRs, and without the password the production URL shows only the login page.
 
 ### Scaffolding notes
 Done in NB-002.1 on Node 26 (pinned in `.nvmrc` and `engines.node: "26.x"`). `frontend/` wasn't empty, and create-next-app refuses non-empty folders and names starting with a dot, so it ran in a subfolder of the gitignored `.scaffold/`:
@@ -63,7 +64,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - Home page with real data.
 - Notebook page shell with the three areas and their empty states. Unknown or foreign IDs return 404.
 
-**Done when:** on production, create, rename and delete work, and opening one of your notebook URLs in a private window gives a 404.
+**Done when:** on production, create, rename and delete work, and opening one of your notebook URLs in a private window and logging in there gives a 404.
 
 ## M4 · Sources and ingestion · open
 
@@ -116,7 +117,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 | Topic | Decision | Status |
 |---|---|---|
 | Stack | Next.js, Vercel, Supabase, Gemini free tier, Vercel AI SDK | decided |
-| Auth | None; anonymous `owner_id` cookie | decided |
+| Auth | Shared password gate + anonymous `owner_id` cookie | decided |
 | UI language | English | decided |
 | Regions | Supabase Frankfurt, Vercel fra1 | decided |
 | Repo layout | npm workspaces: `frontend/` (deployed), `backend/` (`@repo/backend` library), `infra/`; one Vercel deployment | decided |

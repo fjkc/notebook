@@ -99,7 +99,7 @@ Only people who have the password can use the deployed app. The author emails th
 
 ## Implementation
 
-- [ ] **Implemented** (`feat/NB-003-access-gate`)
+- [x] **Implemented** (`feat/NB-003-access-gate`)
   - R1–R13 in one PR: the backend access module and its tests, the `./access` export, the login page and action, the gate in the proxy, the check in `getOwnerId()`, CLAUDE.md rule 2 and the docs in R13.
   - **User step before merge:** add `APP_PASSWORD` and `SESSION_SECRET` in Vercel for **Production and Preview**, then redeploy. The gate fails closed, so merging without them locks everyone out of production. The PR's "Deployment" section says this, and `/implement` asks for it in one message when opening the PR.
   - Acceptance:
@@ -129,3 +129,9 @@ None. Login type and placement were decided by the user (one shared password, se
 
 ## Notes
 - The first deployment in NB-002.5 is open until NB-003 merges. It's an empty shell with no Gemini calls, so nothing can use up the quota in that window.
+- Implementation: `@repo/backend/access` also exports `ACCESS_COOKIE`, `hasValidSession(token)`, `isAppPassword(env, input)` and `createSession(env)`, beyond R1–R4. The proxy, `getOwnerId()` and the login page share one session check, and the frontend never touches the two variables (the R13 grep finds nothing in `frontend/src`).
+- Implementation: the zod input check for the password is `parsePasswordInput()` in `access/password.ts`, so the frontend needs no `zod` dependency. The 30-day lifetime, the 1-second delay and the 200-character input limit are constants in `shared/limits.ts`.
+- Implementation: `docs/PROGRESS.md` sets M1 back to **open**, because its "Done when" gains the login-page line (R13). It's marked done again once that line holds on production.
+- Implementation: the local login checks were run by submitting the form without JavaScript (React's progressive enhancement) with a scripted HTTP client, not in a browser. The JavaScript-driven flow is checked on the preview. Action responses repeat the `owner_id` `Set-Cookie` header with the same value, which is harmless.
+- Review round 1 (PR #13): the matcher exclusions `favicon.ico` and `api/health` were prefixes, so any path starting with them (e.g. `/api/healthz`) skipped the gate. R11 said the exclusions stay; instead the matcher now skips only `_next/static` and `_next/image`, and the proxy lets through exactly `/api/health` and `/favicon.ico` (`PUBLIC_PATHS`). Checked on a fresh `next start`: `/api/health` → `200` without cookies, `/api/healthz`, `/api/health/x` → `401`.
+- Review round 1: the password input and both env values are trimmed, so a password copied from an email with a trailing space or newline, or pasted into Vercel with one, still works. The generated base64 password never contains whitespace.
