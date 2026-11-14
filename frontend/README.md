@@ -9,7 +9,7 @@ The Next.js app: everything the browser sees, plus the thin server layer that co
 | Pages, layouts, `loading.tsx`, `error.tsx`, `not-found.tsx` | SQL queries, Supabase table access |
 | React components (Server and Client), shadcn/ui components | Prompts, model IDs, Gemini calls |
 | Server Actions and Route Handlers as **thin adapters** | Chunking, embedding, retrieval, URL fetching |
-| `proxy.ts` / `middleware.ts` (owner cookie), `getOwnerId()` | Business rules and limit checks (call the backend) |
+| `proxy.ts` (access gate, then owner cookie), `getOwnerId()` | Business rules and limit checks (call the backend) |
 | Design tokens, fonts, global CSS, favicon | Secrets other than through `@repo/backend` |
 | Browser Supabase client (signed PDF uploads only) | |
 | `APP_NAME` and other UI-only constants | |
@@ -24,6 +24,9 @@ frontend/
   src/
     app/
       layout.tsx, page.tsx            home: notebook list
+      login/
+        page.tsx, login-form.tsx      password form (the only page open without a session)
+        actions.ts                    logIn: the only action without getOwnerId()
       actions.ts                      server actions for home
       notebook/[id]/
         page.tsx, loading.tsx, not-found.tsx
@@ -40,11 +43,11 @@ frontend/
       notebook/                       sources, chat, notes areas
     lib/
       config.ts                       APP_NAME, UI-only constants
-      owner.ts                        getOwnerId() from the cookie
+      owner.ts                        getOwnerId(): requires a valid session, returns the owner
       owner-cookie.ts                 cookie name and max age, shared with proxy.ts
       http.ts                         toErrorResponse(), withRoute() logging wrapper
       supabase/browser.ts             publishable key, uploadToSignedUrl only
-    proxy.ts                          sets the owner_id cookie (imports only @repo/backend/shared)
+    proxy.ts                          access gate, then owner cookie (imports @repo/backend/shared and /access)
   vercel.json                         region fra1, daily health cron
   .env.example
 ```

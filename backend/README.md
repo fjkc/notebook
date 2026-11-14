@@ -22,7 +22,7 @@ The backend is **framework-agnostic**: it receives `ownerId` as a plain argument
 
 ```
 backend/
-  package.json            name "@repo/backend", exports "." and "./shared"
+  package.json            name "@repo/backend", exports ".", "./shared" and "./access"
   tsconfig.json
   vitest.config.ts
   src/
@@ -31,6 +31,8 @@ backend/
     errors.ts             AppError, toUserMessage(), toErrorBody(), describeError()
     log.ts                one structured line per operation, no secrets or content
     supabase.ts           server client (secret key), created lazily
+    access/               password gate: env, session tokens, password check, safe redirect
+      index.ts            entry for "@repo/backend/access" (not server-only, the proxy imports it)
     db/                   typed query helpers: notebooks, sources, chunks, messages, notes
     services/             notebooks, sources, chat, notes, health: one module per area
     ai/
@@ -60,13 +62,15 @@ backend/
   "type": "module",
   "exports": {
     ".": "./src/index.ts",          // server only
-    "./shared": "./src/shared/index.ts" // safe for Client Components
+    "./shared": "./src/shared/index.ts", // safe for Client Components
+    "./access": "./src/access/index.ts"  // proxy, getOwnerId and login only
   }
 }
 ```
 
 - `src/index.ts` starts with `import "server-only"`, and so does every module that reads `SUPABASE_SECRET_KEY` or `GOOGLE_GENERATIVE_AI_API_KEY`.
 - Nothing in `shared/` may import from outside `shared/`. That rule is what makes it safe for the browser.
+- `access/` is the one exception to `server-only`: the proxy imports it, and `server-only` throws there. It imports nothing from `next/*` and nothing server-only, and its only env reads are `APP_PASSWORD` and `SESSION_SECRET` in `access/env.ts`. Only `proxy.ts`, `lib/owner.ts` and the login page and action import it, never a Client Component (CLAUDE.md rule 2).
 - Internal packages ship TypeScript source; the frontend compiles them via `transpilePackages`. There is no build step and no `dist/`.
 
 ## Best practices

@@ -11,7 +11,7 @@ Reference for how the app is built and deployed. Keep it in sync with the code: 
                     ▼                     │ (PDF files only)
  ┌───────────────── Vercel (fra1) ──────────────┐  │
  │  Next.js app                                 │  │
- │   • proxy/middleware → owner_id cookie       │  │
+ │   • proxy → password gate, owner_id cookie   │  │
  │   • Server Components → pages                │  │
  │   • Server Actions → CRUD                    │  │
  │   • Route Handlers /api/* (Node runtime)     │  │
@@ -55,7 +55,7 @@ Explain these in the README and the Loom video.
 | Decision | Why | Trade-off |
 |---|---|---|
 | RAG with pgvector instead of whole documents in the prompt | Precise, page-level citations; small requests that fit free-tier limits; scales to many sources | More moving parts (chunking, embeddings) |
-| No login, cookie-based ownership | Reviewers can test instantly | Notebooks are tied to one browser |
+| Shared password gate, cookie-based ownership | Protects the Gemini free-tier quota: only people with the password can use the demo; no accounts to create | One password for everyone; notebooks are still tied to one browser |
 | All DB access server-side with the secret key | One trust boundary, simple code | RLS is a backstop, not the main access control |
 | PDFs uploaded directly to Supabase Storage | Avoids Vercel's ~4.5 MB request body limit | Two-step upload flow |
 | No job queue; client triggers processing and polls | Fits a weekend; no extra infrastructure | Very large files could hit function time limits; a queue is the next step |
@@ -77,13 +77,24 @@ The request path is `Browser → frontend (owner from cookie, thin adapter) → 
 
 ## 4. Ownership
 
-- `frontend/src/proxy.ts` (Next 16): if the `owner_id` cookie is missing **or not a UUID**, set it to `crypto.randomUUID()`; `httpOnly`, `sameSite: "lax"`, `path: "/"`, `maxAge` one year, and `secure` in production only (so it also works on `http://localhost`).
+- `frontend/src/proxy.ts` (Next 16) runs the access gate first (see "Access gate" below). On every request it lets through, if the `owner_id` cookie is missing **or not a UUID**, set it to `crypto.randomUUID()`; `httpOnly`, `sameSite: "lax"`, `path: "/"`, `maxAge` one year, and `secure` in production only (so it also works on `http://localhost`).
   - The new value is set on the response **and on the forwarded request** (`NextResponse.next({ request: { headers } })`), so `getOwnerId()` sees it on the very first visit.
   - The matcher skips `_next/static`, `_next/image`, `favicon.ico` and `api/health` (the cron needs no cookie). Server Actions post to page routes, so they stay covered.
-  - The proxy can't import `@repo/backend` (its `server-only` guard throws outside Server Components); it uses `isUuid` from `@repo/backend/shared`.
-- `getOwnerId()` (`frontend/src/lib/owner.ts`) awaits `cookies()` and returns the value if it's a UUID, otherwise throws `UNAUTHORIZED`. It is the only place that decides who the owner is; the value goes to backend functions as a plain `ownerId` argument.
+  - The proxy can't import `@repo/backend` (its `server-only` guard throws outside Server Components); it uses `isUuid` from `@repo/backend/shared` and the gate from `@repo/backend/access`.
+- `getOwnerId()` (`frontend/src/lib/owner.ts`) awaits `cookies()`, requires a valid `access` session, and returns the `owner_id` value if it's a UUID; otherwise it throws `UNAUTHORIZED`. It is the only place that decides who the owner is; the value goes to backend functions as a plain `ownerId` argument.
 - `assertNotebookOwner(ownerId, notebookId)` (backend) validates both as UUIDs, loads the notebook with `owner_id` filter and throws `NOT_FOUND` if no row, or if either ID is malformed. Every backend service that takes a notebook or source id calls it first.
 - Accessing someone else's notebook returns 404, not 403, so ids can't be probed.
+
+### Access gate
+
+One shared password protects the deployed app, so the Gemini free-tier quota is reserved for the reviewers. The author emails it to them. Code: `backend/src/access/` (entry `@repo/backend/access`), `frontend/src/proxy.ts`, `frontend/src/app/login/`.
+
+- **Env:** `APP_PASSWORD` (at least 24 characters, generated with `openssl rand -base64 24`) and `SESSION_SECRET` (at least 32, `openssl rand -base64 32`), read only in `access/env.ts`. If either is missing or invalid, `getAccessEnv()` returns `null`: nobody can log in (fail closed), `/login` says "Login isn't set up yet.", and the log names the variable, never its value.
+- **Session:** the `access` cookie (`httpOnly`, `secure` in production, `sameSite: "lax"`, 30 days) holds `v1.<expiresAt>.<signature>`, an HMAC-SHA256 with `SESSION_SECRET` over the version, expiry and a SHA-256 fingerprint of the password. Changing the password or the secret logs everyone out. The password check compares SHA-256 digests with `timingSafeEqual`.
+- **Login:** `/login` (rendered per request) and the `logIn` Server Action, the only action that doesn't call `getOwnerId()`. After login it redirects to `safeNextPath(next)`, which accepts only same-origin paths (no `//host`, backslashes, control characters, absolute URLs or `/login`).
+- **Proxy (first layer):** the matcher exclusions stay (`_next/static`, `_next/image`, `favicon.ico`, `api/health`). `/login` is open. Without a valid session: `GET`/`HEAD` pages redirect (`307`) to `/login?next=…`; `/api/*` and other methods get `401` with the `UNAUTHORIZED` error shape; Server Actions (`POST` with a `Next-Action` header) pass through, because a redirect would re-send the POST to `/login`. The owner cookie is set only on requests the proxy lets through.
+- **`getOwnerId()` (second layer):** requires a valid session too, so every Server Action, Route Handler and page that loads owner data is protected even if the matcher changes. A Server Action without a session returns "Your session has expired. Reload the page."
+- **Brute force:** no attempt counter. The real protection is the password's entropy (24 random bytes). A wrong password waits 1 second (`FAILED_LOGIN_DELAY_MS`), which slows sequential guessing only; only the free-tier quota is at stake. Upgrade path if needed: a per-IP attempt counter in Postgres, checked in `logIn`.
 
 ## 5. Data model
 
