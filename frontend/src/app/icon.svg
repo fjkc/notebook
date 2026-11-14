@@ -1,12 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <style>
     .bg { fill: #f5f6f7; }
-    .glyph { stroke: #7a2e63; }
+    .note { fill: #f4e48c; }
+    .lines { stroke: #1a1d21; stroke-opacity: 0.55; }
+    .hook { stroke: #7a2e63; }
+    .pierce { fill: #7a2e63; }
     @media (prefers-color-scheme: dark) {
       .bg { fill: #121417; }
-      .glyph { stroke: #e39bd2; }
+      .hook { stroke: #e39bd2; }
+      .pierce { fill: #e39bd2; }
     }
   </style>
   <rect class="bg" width="32" height="32" rx="7" />
-  <path class="glyph" d="M19.5 6v12.5a5.75 5.75 0 0 1-11.5 0" fill="none" stroke-width="3.25" stroke-linecap="round" />
+  <g transform="rotate(-8 16 20)">
+    <rect class="note" x="8.5" y="18.6" width="15" height="11.6" rx="1.6" />
+    <path class="lines" d="M11.5 24.4h9M11.5 27.1h6" stroke-width="1.3" stroke-linecap="round" />
+  </g>
+  <g class="hook" fill="none" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="21" cy="4.4" r="2.1" />
+    <path d="M21 6.5v8.4a5 5 0 0 1-10 0V11.6" />
+    <path d="M11 11.6l2.6 2.4" />
+  </g>
+  <g transform="rotate(-8 16 20)">
+    <rect class="note" x="12.2" y="18.6" width="3.8" height="4" />
+  </g>
+  <circle class="pierce" cx="16" cy="20" r="1.05" />
 </svg>

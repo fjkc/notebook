@@ -84,8 +84,9 @@ The shadcn components in `frontend/src/components/ui/` follow the rules above.
 
 ## Wordmark and favicon
 
-- **Wordmark:** "Notehooked" in Newsreader 500, after the hook glyph in `hook`. The glyph is one stroke: a short vertical line ending in a round hook.
-- **Favicon:** `frontend/src/app/icon.svg`, the same glyph on a rounded `paper` square, with a dark variant inside the SVG. `/icon.svg` is a public path in the proxy, so the logged-out login page shows it.
+- **The mark:** a fishhook (eye, shank, bend and barbed point) in `hook`, with a note in `marker` yellow hooked on its bend: the bend passes behind the paper's top edge, as if threaded through it. The note has two `ink` lines of text. It says the product in one picture: the passage is caught on the hook.
+- **Wordmark:** "Notehooked" in Newsreader 500, after the mark (`HookMark`, 28 px). The hook takes `currentColor` (`text-hook`), the note uses the `marker` and `ink` tokens, so it follows the theme.
+- **Favicon:** `frontend/src/app/icon.svg`, the same mark on a rounded `paper` square, with a dark variant inside the SVG. It stays legible at 16 and 32 px. `/icon.svg` is a public path in the proxy, so the logged-out login page shows it.
 
 ## Names in the UI
 
