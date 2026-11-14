@@ -26,6 +26,8 @@ git status --porcelain            # must print nothing, otherwise stop and say w
 git switch main && git pull --ff-only
 ```
 
+**Changing an approved spec** instead of writing a new one: keep its ID, branch `docs/NB-XXX-spec-change-<word>`, edit the existing file, and title the PR `docs(NB-XXX): spec change: <what>` (`WORKFLOW.md` §2). Skip the next-free-ID step.
+
 **Next free ID:** the highest `NB-XXX` among `specs/NB-*.md` on `main` **and** the titles of all PRs (`gh pr list --state all --limit 200 --json title`), plus one. IDs are never reused, not even from closed PRs.
 
 ```bash

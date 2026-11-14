@@ -38,6 +38,8 @@ Run with `/spec [topic]`, or ask in plain words ("let's write the spec for X"). 
 5. The user comments on the PR, and `/review` adds the spec-reviewer's findings. Claude answers by pushing fix commits to the same branch.
 6. **The user merges the spec PR. That is the approval.** "Open questions" must be empty by then.
 
+**Changing an approved spec.** Before implementation starts (or when the user wants the change reviewed on its own), the change gets its own PR: same ID, branch `docs/NB-XXX-spec-change-<word>`, the existing spec file edited in place, title `docs(NB-XXX): spec change: <what>`, merged like a spec PR. A deviation found **during** implementation that the user agrees to stays in the implementation branch as a line under "Notes" (§6), with no separate PR.
+
 ## 3. Implementing a spec
 
 Run with `/implement NB-003`, or ask in plain words ("implement NB-003", "pick up NB-005"). The steps are in `.claude/skills/implement/SKILL.md`.
