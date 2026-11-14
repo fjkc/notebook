@@ -4,8 +4,9 @@ import { z } from "zod";
 // main entry: the proxy imports this module. Never import it from a Client Component, and never prefix these with NEXT_PUBLIC_.
 
 const AccessEnv = z.object({
-  APP_PASSWORD: z.string().min(24),
-  SESSION_SECRET: z.string().min(32),
+  // Trimmed, so a value pasted into Vercel with a trailing newline still works.
+  APP_PASSWORD: z.string().trim().min(24),
+  SESSION_SECRET: z.string().trim().min(32),
 });
 
 export type AccessEnv = z.infer<typeof AccessEnv>;

@@ -2,9 +2,11 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { MAX_PASSWORD_INPUT_CHARS } from "../shared/limits";
 
-const PasswordInput = z.string().min(1).max(MAX_PASSWORD_INPUT_CHARS);
+// Trimmed: a password copied from an email often carries a trailing space or newline, and the
+// generated password (base64) never contains whitespace.
+const PasswordInput = z.string().trim().min(1).max(MAX_PASSWORD_INPUT_CHARS);
 
-/** The submitted password if it's a non-empty string of at most MAX_PASSWORD_INPUT_CHARS, else null. */
+/** The submitted password, trimmed, if it's a non-empty string of at most MAX_PASSWORD_INPUT_CHARS, else null. */
 export function parsePasswordInput(input: unknown): string | null {
   const result = PasswordInput.safeParse(input);
   return result.success ? result.data : null;

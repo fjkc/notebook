@@ -20,10 +20,15 @@ describe("passwordMatches", () => {
 describe("parsePasswordInput", () => {
   it("accepts a non-empty string up to the limit", () => {
     expect(parsePasswordInput("pw")).toBe("pw");
+  });
+
+  it("trims a copied password's surrounding whitespace", () => {
+    expect(parsePasswordInput(" pw \n")).toBe("pw");
+    expect(parsePasswordInput("pw\r\n")).toBe("pw");
     expect(parsePasswordInput("x".repeat(MAX_PASSWORD_INPUT_CHARS))).toHaveLength(MAX_PASSWORD_INPUT_CHARS);
   });
 
-  it.each([undefined, null, 5, "", "x".repeat(MAX_PASSWORD_INPUT_CHARS + 1)])("rejects %j", (input) => {
+  it.each([undefined, null, 5, "", "  \n", "x".repeat(MAX_PASSWORD_INPUT_CHARS + 1)])("rejects %j", (input) => {
     expect(parsePasswordInput(input)).toBeNull();
   });
 });

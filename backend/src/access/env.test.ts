@@ -26,6 +26,10 @@ describe("getAccessEnv", () => {
     expect(text).not.toMatch(/ppp|sss/);
   });
 
+  it("trims values pasted with a trailing newline", () => {
+    expect(getAccessEnv({ APP_PASSWORD: valid.APP_PASSWORD + "\n", SESSION_SECRET: " " + valid.SESSION_SECRET })).toEqual(valid);
+  });
+
   it("never throws, even for odd input", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => getAccessEnv({ APP_PASSWORD: undefined, SESSION_SECRET: undefined })).not.toThrow();
