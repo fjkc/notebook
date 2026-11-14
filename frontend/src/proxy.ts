@@ -6,11 +6,19 @@ import { OWNER_COOKIE, OWNER_COOKIE_MAX_AGE } from "@/lib/owner-cookie";
 const LOGIN_PATH = "/login";
 
 /**
+ * Exact paths that need neither a session nor an owner cookie: the health cron and the favicon.
+ * Checked here rather than in the matcher, because matcher exclusions are prefixes
+ * ("api/health" would also skip /api/healthz), and Next ignores a "$" anchor in them.
+ */
+const PUBLIC_PATHS = new Set(["/api/health", "/favicon.ico"]);
+
+/**
  * Access gate first, then the owner cookie (docs/ARCHITECTURE.md → "Access gate", "Ownership").
  * The proxy is a first layer only: getOwnerId() checks the session again.
  */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   const isLogin = pathname === LOGIN_PATH;
 
   if (!isLogin && !(await hasValidSession(request.cookies.get(ACCESS_COOKIE)?.value))) {
@@ -55,6 +63,7 @@ function withOwnerCookie(request: NextRequest) {
 }
 
 export const config = {
-  // Server Actions post to page routes, so they stay covered. The health cron needs no cookie.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health).*)"],
+  // Only build assets skip the proxy. Server Actions post to page routes, so they stay covered.
+  // The health cron and the favicon are let through by exact path (PUBLIC_PATHS).
+  matcher: ["/((?!_next/static|_next/image).*)"],
 };
