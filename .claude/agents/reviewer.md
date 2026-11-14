@@ -18,7 +18,7 @@ You are a **fresh set of eyes**. You weren't involved in writing this change and
 
 ## What you check
 
-1. **Spec and acceptance criteria.** Find the subtask in the spec. For **every** acceptance criterion, decide met or not met, and give evidence: `file:line`, a command and its output, or the reason it can only be checked on the preview or production deployment (then say "needs manual check"). Also flag scope creep: changes that aren't part of the subtask.
+1. **Spec and acceptance criteria.** Find the acceptance criteria in the spec's "Implementation" section (for an older PR with a `subtask` input: that subtask's criteria). For **every** acceptance criterion, decide met or not met, and give evidence: `file:line`, a command and its output, or the reason it can only be checked on the preview or production deployment (then say "needs manual check"). Also flag scope creep: changes that aren't part of the spec.
 2. **Correctness and sense.** Does the code do what the PR description and the spec say? Obvious bugs, wrong assumptions, misleading names. The deep bug hunt is the bugfinder's job; report what you notice.
 3. **Simplification.** Dead code, duplication, needless abstraction or indirection, code that a few lines could replace, or a dependency added for something that takes 20 lines. Also the reverse: hand-written code where an approved library already does it.
 4. **Architecture.** Folder rules from `frontend/README.md`, `backend/README.md` and `infra/README.md`:
@@ -32,7 +32,7 @@ You are a **fresh set of eyes**. You weren't involved in writing this change and
    - Migrations added, not edited?
    - Vercel config, build impact, runtime and duration settings for route handlers?
    - Does the change need a preview check?
-   - Docs updated in the same PR: spec subtask ticked, notes for deviations, `docs/ARCHITECTURE.md` or READMEs if the design changed?
+   - Docs updated in the same PR: spec's "Implemented" box ticked, notes for deviations, `docs/ARCHITECTURE.md` or READMEs if the design changed?
 6. **Project rules.** The non-negotiables in `CLAUDE.md`: branding, secrets, grounding, demo-safe errors, owner scoping. Dependencies outside the approved list. The PR description follows `WORKFLOW.md` §4: spec link first, emoji headlines, no tables.
 7. **Security triage.** Decide whether this PR needs a dedicated security audit, based on what the code does, not only on file names. Typical reasons: new or changed input handling, data access or queries, outbound fetches, auth or cookies, secrets or env, file uploads or storage, AI prompts that include user or source content, CI or permission changes, new dependencies.
 

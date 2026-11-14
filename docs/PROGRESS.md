@@ -39,7 +39,7 @@ npm install
 ```
 Then `transpilePackages: ["@repo/backend"]` in `frontend/next.config.ts`, `"@repo/backend": "*"` in `frontend/package.json`, and the scripts: `typecheck` is `next typegen && tsc --noEmit` in `frontend/` and `tsc --noEmit` in `backend/`, `test` is `vitest run --passWithNoTests` in `backend/`.
 
-Every other dependency is installed by the subtask that first uses it (NB-002 → "Dependencies"): shadcn and `zod` in NB-002.3, `@supabase/supabase-js` in NB-002.4, the AI and extraction packages in later milestones.
+Every other dependency is installed by the spec that first uses it (NB-002 → "Dependencies"): shadcn and `zod` in NB-002.3, `@supabase/supabase-js` in NB-002.4, the AI and extraction packages in later milestones.
 
 ## M2 · Name and design · open
 
@@ -121,7 +121,7 @@ Every other dependency is installed by the subtask that first uses it (NB-002 �
 | Regions | Supabase Frankfurt, Vercel fra1 | decided |
 | Repo layout | npm workspaces: `frontend/` (deployed), `backend/` (`@repo/backend` library), `infra/`; one Vercel deployment | decided |
 | Branch protection | None; `main` stays unprotected, CI runs on every PR | decided |
-| Workflow | Spec-driven; specs and code reach `main` only via PRs; merging a spec PR approves it | decided |
+| Workflow | Spec-driven; specs and code reach `main` only via PRs; merging a spec PR approves it; one implementation PR per spec, no subtasks (from NB-004) | decided |
 | App name | – | open (M2) |
 | Design | – | open (M2) |
 

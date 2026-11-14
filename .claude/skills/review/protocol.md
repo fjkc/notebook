@@ -12,8 +12,8 @@ You start with no context from the author or from earlier reviews, on purpose. F
 
 - `pr`: PR number. `url`: PR link.
 - `head_sha`: the commit under review. `base`: the base branch (usually `main`).
-- `kind`: `code` (a PR that implements a subtask) or `spec` (a PR that proposes or changes a spec, no code).
-- `spec`: path of the spec file, or `none`. `subtask`: e.g. `NB-003.2`, or `none` (always `none` for spec PRs).
+- `kind`: `code` (a PR that implements a spec) or `spec` (a PR that proposes or changes a spec, no code).
+- `spec`: path of the spec file, or `none`. `subtask`: only for older PRs from before NB-004 that implement one subtask (e.g. `NB-002.5`), otherwise `none`.
 - `changed_files`: the files the PR changes.
 - `local_head_matches`: `true` if the local checkout was exactly `head_sha` with a clean tree **when you were launched**.
 - `round`: `1` for the first review of this PR, `2`, `3` … for re-reviews after fixes.

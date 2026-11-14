@@ -30,7 +30,7 @@ The repo is an npm workspaces monorepo with **one deployment**. `frontend/` is t
 2. Before writing a spec or code, read the relevant section of `docs/ARCHITECTURE.md` and the README of every folder you'll touch. When unsure about a library API, read the official docs: several libraries here changed a lot between major versions (see **Version gotchas**).
 3. If something needs the user (keys, dashboards, choices), ask in **one** message and wait.
 
-Work autonomously within a subtask. Ask only when a decision affects scope, design, cost or the data model.
+Work autonomously within a spec. Ask only when a decision affects scope, design, cost or the data model.
 
 ## Non-negotiable rules
 
