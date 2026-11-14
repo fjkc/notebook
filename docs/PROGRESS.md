@@ -2,13 +2,13 @@
 
 The roadmap. Each milestone lists its scope and a "Done when" that is checked on production. Work on a milestone happens through specs and PRs (`WORKFLOW.md`). Progress on individual tasks lives in the specs, not here. This file only records whether a milestone is open or done.
 
-## M0 · Setup (user) · open
+## M0 · Setup (user) · done
 
 Follow `infra/README.md` → "Setup from scratch", steps 1–5: Gemini key, Supabase project, schema, keys, `frontend/.env.local`.
 
 **Done when:** `frontend/.env.local` is filled in and the schema is applied.
 
-## M1 · Tooling, scaffold and first deployment · open
+## M1 · Tooling, scaffold and first deployment · done
 
 1. **Tooling (next up):** project slash commands so the workflow runs the same way every time:
    - `/spec`: propose or write the next spec on a `docs/NB-XXX-spec` branch and open the spec PR.
