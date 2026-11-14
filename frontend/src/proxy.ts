@@ -8,7 +8,9 @@ const LOGIN_PATH = "/login";
 /**
  * Exact paths that need neither a session nor an owner cookie: the health cron and the favicon.
  * Checked here rather than in the matcher, because matcher exclusions are prefixes
- * ("api/health" would also skip /api/healthz), and Next ignores a "$" anchor in them.
+ * ("api/health" would also skip /api/healthz) and an exact Set lookup is easier to read.
+ * Assets the logged-out login page needs (icons, images in public/) must be added here by
+ * exact path, or be served from _next/static (next/font, imported images).
  */
 const PUBLIC_PATHS = new Set(["/api/health", "/favicon.ico"]);
 
