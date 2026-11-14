@@ -138,7 +138,7 @@ Users can add a web article by its link and upload a PDF of up to 10 MB and 100 
     - **After merge, on production (M4 "Done when"):** a ~50-page PDF, an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
 
 ## Open questions
-None. (The fixture PDF is picked during implementation from US federal public-domain publications, R14; say if you'd rather choose it. Lowering the page limit to 100 is a decision in R10; say if you'd rather keep 300.)
+None. Decided by the user (2026-11-14): the PDF limit is 100 pages plus the 200,000-character text cap (R6a, R10), and the fixture PDF is a public-domain US federal government publication picked during implementation (R14).
 
 ## Notes
 Deviations found during implementation, one line each.
