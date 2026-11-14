@@ -19,3 +19,6 @@ export const MAX_PASTED_TEXT_CHARS = 200_000;
 
 /** Default cap for one server Supabase request, in ms. Long operations pass their own signal (see supabase.ts). */
 export const SUPABASE_REQUEST_TIMEOUT_MS = 10_000;
+
+/** Cap for the health check's database query, in ms (docs/ARCHITECTURE.md → "Keep-alive and health"). */
+export const HEALTH_CHECK_TIMEOUT_MS = 5_000;
