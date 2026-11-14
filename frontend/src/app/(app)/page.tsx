@@ -16,6 +16,8 @@ export default function Home() {
           </TooltipTrigger>
           <TooltipContent>Available soon</TooltipContent>
         </Tooltip>
+        {/* Tooltips don't open on tap, so small screens get the hint as text. */}
+        <p className="-mt-2 text-center text-sm text-graphite sm:hidden">Available soon</p>
       </div>
 
       <section className="mt-10 border-t border-rule pt-10">

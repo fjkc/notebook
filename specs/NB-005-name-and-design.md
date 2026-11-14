@@ -131,3 +131,6 @@ None. Decided by the user (2026-11-14): plum `#7A2E63` as the accent, the theme 
 - Implementation: buttons keep the sizes `sm`, `default`, `lg`, `icon`, `icon-sm`; the unused `secondary` variant and `xs`, `icon-xs`, `icon-lg` sizes are removed. Skeletons are static (no pulse); a loading spinner is the only continuous animation, and reduced motion stops it.
 - Implementation: DESIGN.md principle 3 uses the wording suggested in spec review round 2 (overlays incl. tooltips move; hover and focus only change colour), so it matches R17.
 - Implementation: the code diff is about 810 changed lines in `frontend/` (637 added, 171 removed, of which ~130 are one-for-one class swaps in the shadcn components), right at the ~800 limit.
+- PR #16 (user request): the mark is a real fishhook (eye, shank, bend, barb) with a `marker`-yellow note hooked on its bend, instead of R8's single "J" stroke. Same mark in the wordmark (`HookMark`, theme tokens) and in `icon.svg` (light and dark); DESIGN.md → "Wordmark and favicon" describes it.
+- Review round 1: Newsreader is loaded as 400 and 500, each normal and italic; `next/font` can't load italic for one weight only, so the unused 500 italic face is accepted.
+- Review round 1: below 640 px the home page shows "Available soon" as text under the "New notebook" button, because tooltips don't open on tap.

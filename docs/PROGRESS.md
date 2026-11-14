@@ -84,7 +84,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - Retrieval and prompt builder.
 - Citation parser, with tests.
 - `POST /api/chat`: streaming, citation metadata, persistence, throttle.
-- Chat UI: Markdown rendering, citation chips with popover, source highlighting, suggested questions, source include/exclude, disabled state without ready sources.
+- Chat UI: Markdown rendering, citation hooks that open the Reader (`docs/DESIGN.md` → "Layout"), source highlighting on the Shelf, suggested questions, source include/exclude, disabled state without ready sources.
 - History on page open, clear chat, friendly `RATE_LIMITED` handling.
 
 **Done when:** on production, answers cite the right passages, a citation shows source, page and excerpt, an unanswerable question gets an honest "not in your sources" reply, and a German question gets a German answer. Then tag `v1.0-mvp`.

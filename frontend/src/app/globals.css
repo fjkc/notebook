@@ -130,6 +130,7 @@
 /* Toasts: Sonner's own transition is 400 ms; keep it at 150 ms like every overlay. */
 [data-sonner-toaster] [data-sonner-toast] {
   transition-duration: 150ms;
+  box-shadow: var(--overlay-shadow);
 }
 
 @media (prefers-reduced-motion: reduce) {
