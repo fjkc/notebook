@@ -121,7 +121,7 @@ The repo becomes a working app: an empty Next.js shell with the backend package,
     - Locally, on the first visit in a fresh private window: the response sets `owner_id` (`HttpOnly`, `SameSite=Lax`), and a temporary debug render of `getOwnerId()` on that same first request returns the value instead of throwing (checked by hand, not committed). The `Secure` flag in production is checked on the preview in NB-002.5.
     - A tampered cookie (`owner_id=abc`) is replaced on the next request.
     - `SUPABASE_SECRET_KEY` is read only in `backend/src/env.ts`, and every module that reaches it starts with `import "server-only"`.
-- [ ] **NB-002.5 · Health check, README and first deployment** (`feat/NB-002.5-health-deploy`)
+- [x] **NB-002.5 · Health check, README and first deployment** (`feat/NB-002.5-health-deploy`)
   - R23–R25.
   - **User step before this subtask starts:** M0 done (Supabase project, schema applied, keys), then the Vercel import per `infra/README.md` step 6 with all four env vars for Production and Preview. `/implement` asks for this in one message before branching. Importing earlier is fine: until this subtask merges, the daily cron gets a 404 from `/api/health`, which is harmless.
   - Acceptance:
@@ -130,7 +130,7 @@ The repo becomes a working app: an empty Next.js shell with the backend package,
     - The Vercel build log shows Node 26.
     - `README.md` contains the inspired-by sentence (no logos, no implied affiliation) and links to `infra/README.md` → "Setup from scratch", `docs/ARCHITECTURE.md` and `WORKFLOW.md`.
     - `infra/README.md` step 6 matches the settings actually used (Root Directory, install command, Node version), and `docs/ARCHITECTURE.md` → "Keep-alive and health" and §10 describe R23.
-    - **After merge, on production:** the cron is listed under Project → Settings → Cron Jobs (Vercel registers crons only for production deployments).
+    - **After merge, on production:** the cron is listed under Project → Settings → Schedules, formerly "Cron Jobs" (Vercel registers crons only for production deployments).
     - **After merge, on production:** M1's "Done when" in `docs/PROGRESS.md` holds (production URL loads, `/api/health` → `ok: true, db: true`, cookie set, CI runs on PRs). The user checks it and marks M1 done.
 
 ## Open questions
@@ -158,3 +158,4 @@ None.
 - NB-002.4: from review: every server Supabase request (queries and Storage, via `global.fetch`) gets a default 10 s timeout (`SUPABASE_REQUEST_TIMEOUT_MS`) unless the caller passes its own signal, which takes precedence. **For M4:** PDF downloads and chunk inserts must pass a longer signal and insert in batches (`docs/ARCHITECTURE.md` → "Runtime configuration"). `assertNotebookOwner` validates with the shared `isUuid` rule, so it rejects the nil UUID like the proxy.
 - NB-002.5: implemented before M0 and the Vercel import, at the user's request ("use mock keys for now"). Checked locally with mock env: `503` and `{ ok: false, db: false }` after the 5 s timeout, no details in the body, `Cache-Control: no-store`, and the `owner_id` cookie with `HttpOnly`, `Secure` and `SameSite=Lax` under `next start`. The `200` case, the preview checks, the Node 26 build log line and the real Vercel settings in `infra/README.md` step 6 are checked by the user once the accounts exist. So the box stays **unticked** when this code merges (review round 1): a small follow-up PR after the Vercel import ticks it and corrects step 6 if the import differs.
 - NB-002.5: the query lives in `services/health.ts` (not `db/`), because it is the only query of its kind and returns only a boolean. Its timeout is `HEALTH_CHECK_TIMEOUT_MS` in `limits.ts`, passed as the query's own signal, so it overrides the 10 s default.
+- NB-002.5 verified after the Vercel import (2026-11-14), so the box is ticked in a follow-up PR. Locally: `/api/health` → `200`, `{ ok: true, db: true }`. The project was imported after this subtask merged, so there was no preview of its PR: the preview checks were done on production instead (`/api/health` → `200` with `db: true` and `Cache-Control: no-store`, `owner_id` cookie set). Build log shows Node 26.x. Step 6 matched the import as written. Vercel has renamed "Cron Jobs" to "Schedules"; step 7 and the criterion above now say so, and `/api/health` is listed there.

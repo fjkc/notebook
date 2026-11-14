@@ -42,7 +42,7 @@ Hosting (Vercel, `fra1`), database and storage (Supabase, Frankfurt), AI (Gemini
    - **Node.js version:** comes from `engines.node` (`26.x`) in `frontend/package.json`, which overrides the project setting. The build log shows it.
    - **Environment variables:** all four from `frontend/.env.example`, for **Production and Preview**.
    - Deploy.
-7. **Verify:** `GET https://<deployment>/api/health` returns `{ "ok": true, "db": true }`, and the cron appears under Project → Settings → Cron Jobs.
+7. **Verify:** `GET https://<deployment>/api/health` returns `{ "ok": true, "db": true }`, and the cron appears under Project → Settings → Schedules (formerly "Cron Jobs"). Vercel lists it only after a production deployment.
 
 ## Environment variables
 
