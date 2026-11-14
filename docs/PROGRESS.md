@@ -44,7 +44,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 
 ## M2 · Name and design · open
 
-- The user picks the app name from 5 original suggestions that don't resemble NotebookLM or well-known products.
+- The user picks the app name from 5 original suggestions that don't resemble NotebookLM or well-known products. Chosen: **Notehooked** (NB-005).
 - Design plan proposed and approved, then written to `docs/DESIGN.md`:
   - Colour: 4–6 named hex values plus dark-mode equivalents.
   - Type: one or two deliberately chosen typefaces with roles and a type scale.
@@ -123,8 +123,8 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 | Repo layout | npm workspaces: `frontend/` (deployed), `backend/` (`@repo/backend` library), `infra/`; one Vercel deployment | decided |
 | Branch protection | None; `main` stays unprotected, CI runs on every PR | decided |
 | Workflow | Spec-driven; specs and code reach `main` only via PRs; merging a spec PR approves it; one implementation PR per spec, no subtasks (from NB-004) | decided |
-| App name | – | open (M2) |
-| Design | – | open (M2) |
+| App name | Notehooked | decided |
+| Design | `docs/DESIGN.md` (NB-005) | decided |
 
 ## Known limitations (for the README)
 

@@ -23,7 +23,13 @@ Rule of thumb: if it would still make sense with a different web framework, it b
 frontend/
   src/
     app/
-      layout.tsx, page.tsx            home: notebook list
+      layout.tsx                      fonts, theme provider, metadata
+      globals.css                     design tokens (docs/DESIGN.md), the only place with colour values
+      icon.svg                        favicon (a public path in proxy.ts)
+      (app)/                          pages with the top bar; URLs don't include "(app)"
+        layout.tsx                    mounts the TopBar
+        page.tsx                      home: notebook list or empty state
+        design/                       /design reference page: tokens, type, components
       login/
         page.tsx, login-form.tsx      password form (the only page open without a session)
         actions.ts                    logIn: the only action without getOwnerId()
@@ -40,6 +46,8 @@ frontend/
         notes/audio/route.ts          (stretch)
     components/
       ui/                             shadcn components, restyled to our design
+      shell/                          TopBar, Wordmark, ThemeToggle
+      home/                           NotebookRow
       notebook/                       sources, chat, notes areas
     lib/
       config.ts                       APP_NAME, UI-only constants
@@ -94,7 +102,9 @@ export async function renameNotebook(input: unknown) {
 - Chat uses `useChat` from `@ai-sdk/react`, with citations arriving as message metadata (`docs/ARCHITECTURE.md` → "Chat and citations").
 
 **UI and design**
-- Follow `docs/DESIGN.md` (created in M2). Tokens live in CSS via Tailwind v4 `@theme`. No hard-coded colours in components.
+- Follow [`docs/DESIGN.md`](../docs/DESIGN.md). Tokens live in `globals.css` and reach Tailwind v4 through `@theme` (`bg-paper`, `text-graphite`, `text-hook`, …). No colour values in components.
+- `/design` (behind the gate, not linked) shows the tokens, type and components in the current theme. Check new UI against it.
+- Assets the logged-out login page needs (icons, images in `public/`) must be added to `PUBLIC_PATHS` in `proxy.ts` by exact path, or come from `_next/static` (`next/font`, imported images); otherwise the gate redirects them to `/login`.
 - Fonts via `next/font` (self-hosted, no layout shift).
 - Own identity: no Google or NotebookLM look, names or copy (CLAUDE.md rule 1).
 - Copy: English, sentence case, buttons say what happens ("Add source").

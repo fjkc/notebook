@@ -100,7 +100,7 @@ The app has its own name, Notehooked, and its own look: a documented design (`do
 
 ## Implementation
 
-- [ ] **Implemented** (`feat/NB-005-name-design`)
+- [x] **Implemented** (`feat/NB-005-name-design`)
   - No user steps.
   - Acceptance:
     - CI passes (lint, typecheck, test, build).
@@ -125,3 +125,9 @@ The app has its own name, Notehooked, and its own look: a documented design (`do
 None. Decided by the user (2026-11-14): plum `#7A2E63` as the accent, the theme toggle in the top bar, the `/design` reference page stays, and the UI names in R7 as written.
 
 ## Notes
+- Implementation: `edge` is `#828A94` light and `#6B737D` dark. Inputs sit on `paper` as well as on `surface`, so the light value was chosen to reach 3:1 against both (3.49 and 3.23).
+- Implementation: two supporting tokens beyond R3 live in `globals.css`: `scrim` (backdrop behind dialogs and sheets, replacing shadcn's `bg-black/10`) and the overlay shadow (R5's one shadow token).
+- Implementation: the interactive parts of `/design` (dropdown, dialog, toast, citation) are in `(app)/design/demos.tsx`, a client file next to `page.tsx` and `token-swatches.tsx`.
+- Implementation: buttons keep the sizes `sm`, `default`, `lg`, `icon`, `icon-sm`; the unused `secondary` variant and `xs`, `icon-xs`, `icon-lg` sizes are removed. Skeletons are static (no pulse); a loading spinner is the only continuous animation, and reduced motion stops it.
+- Implementation: DESIGN.md principle 3 uses the wording suggested in spec review round 2 (overlays incl. tooltips move; hover and focus only change colour), so it matches R17.
+- Implementation: the code diff is about 810 changed lines in `frontend/` (637 added, 171 removed, of which ~130 are one-for-one class swaps in the shadcn components), right at the ~800 limit.

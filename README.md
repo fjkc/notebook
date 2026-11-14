@@ -1,6 +1,4 @@
-# Untitled notebook app
-
-<!-- The name is a placeholder until M2; it will match APP_NAME in frontend/src/lib/config.ts. -->
+# Notehooked
 
 A web app for working with your own documents. Create a notebook, add sources (PDFs, web pages or pasted text) and ask questions about them. The assistant answers only from those sources, and every claim links to the exact passage it came from, so you can check it yourself.
 
