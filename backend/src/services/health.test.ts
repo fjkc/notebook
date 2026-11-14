@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSupabase } from "../supabase";
 import { checkDatabase } from "./health";
 
@@ -26,6 +26,7 @@ describe("checkDatabase", () => {
     vi.mocked(getSupabase).mockReset();
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
+  afterEach(() => vi.restoreAllMocks());
 
   it("returns true and scopes the query to the nil owner with a timeout", async () => {
     const { client, calls } = fakeClient({ error: null });
@@ -40,13 +41,14 @@ describe("checkDatabase", () => {
     const { client } = fakeClient({ error: { code: "PGRST301", message: "JWT invalid" } });
     vi.mocked(getSupabase).mockReturnValue(client as never);
     await expect(checkDatabase()).resolves.toBe(false);
-    expect(console.error).toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledOnce();
   });
 
   it("returns false when the request rejects (e.g. a timeout)", async () => {
     const { client } = fakeClient(new Error("The operation was aborted due to timeout"));
     vi.mocked(getSupabase).mockReturnValue(client as never);
     await expect(checkDatabase()).resolves.toBe(false);
+    expect(console.error).toHaveBeenCalledOnce();
   });
 
   it("returns false when env is missing", async () => {
@@ -54,5 +56,6 @@ describe("checkDatabase", () => {
       throw new Error("Missing or invalid env: SUPABASE_SECRET_KEY");
     });
     await expect(checkDatabase()).resolves.toBe(false);
+    expect(console.error).toHaveBeenCalledOnce();
   });
 });
