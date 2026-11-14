@@ -23,7 +23,7 @@ Reference for how the app is built and deployed. Keep it in sync with the code: 
  │ Postgres + pgvector            │  │ Flash: chat, summaries,     │
  │   notebooks, sources, chunks,  │  │   questions, notes, scripts │
  │   messages, notes              │  │ Embeddings (768 dims)       │
- │ Storage (private buckets)      │◄─┘ TTS (stretch goal)          │
+ │ Storage (private buckets)      │◄─┘ TTS (not planned)           │
  │   sources/ (PDF), audio/ (WAV) │◄────────────────────────────────┘
  └────────────────────────────────┘
 ```
@@ -173,11 +173,15 @@ Only `http:`/`https:`, default ports only. Resolve the hostname and reject loopb
 - Suggested questions appear as clickable chips when the chat is empty.
 - Users can include/exclude sources for chat (client state, sent as `sourceIds`).
 
-## 8. Generated notes (nice-to-have)
+## 8. Generated notes (not planned)
+
+Cut with M6 (`docs/PROGRESS.md` → "Decisions log", Scope). Kept as a sketch of how it would work; don't build it without a new spec.
 
 `POST /api/notes` with `{ notebookId, kind }` where kind is `briefing | faq | study_guide`. Input: all ready source summaries plus the top 20 chunks retrieved for a kind-specific query. Output: Markdown, saved in `notes`. Listed in the notes area, newest first; viewable and deletable. The names in the UI are in `docs/DESIGN.md` → "Names in the UI".
 
-## 9. Audio conversation (stretch goal)
+## 9. Audio conversation (not planned)
+
+Cut with M7 (`docs/PROGRESS.md` → "Decisions log", Scope). Kept as a sketch; don't build it without a new spec.
 
 1. Generate a script with structured output: `{ title, lines: { speaker: "A" | "B", text }[] }`, ~700–900 words, two hosts with invented first names, grounded in summaries + top chunks.
 2. Voice it with Gemini's multi-speaker TTS model. Use the AI SDK if it supports Gemini TTS in the installed version, otherwise call the Gemini REST API directly from the server.

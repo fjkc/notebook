@@ -95,8 +95,8 @@ The shadcn components in `frontend/src/components/ui/` follow the rules above.
 | Sources of a notebook | Shelf |
 | Chat | Ask (input placeholder: "Ask about your sources…") |
 | Passage view for a citation | Reader |
-| Generated notes | Takeaways |
-| Briefing / FAQ / study guide / audio (stretch) | Brief / Q&A / Study sheet / Spoken recap |
+| Generated notes (not planned, M6 cut) | Takeaways |
+| Briefing / FAQ / study guide / audio (not planned, M6/M7 cut) | Brief / Q&A / Study sheet / Spoken recap |
 
 None of these are NotebookLM's terms (CLAUDE.md rule 1).
 
@@ -175,7 +175,7 @@ Empty state (no notebooks), in place of the list:
 
 - The Shelf is one horizontal strip of source chips: a status dot, the title, then the page count for a PDF or the type ("Text", "Web page") for the others. It scrolls sideways when full; "Add source" sits at its end.
 - **Reader:** for the hook last pressed, it shows the source title, the page and the cited excerpt (`Citation.excerpt`, up to 400 characters, ARCHITECTURE §7) in Newsreader with the `marker` highlight, and below it the source's summary. Pressing a hook also highlights that source's chip on the Shelf. No new data beyond what a citation carries.
-- **Takeaways** lists the generated notes (Brief, Q&A, Study sheet, Spoken recap).
+- **Takeaways** would list the generated notes (Brief, Q&A, Study sheet, Spoken recap). **Not planned:** M6 and M7 are cut, so the right pane, the tablet sheet and the mobile top bar show only the **Reader**, without tabs. The wireframes keep the tab to show where it would go.
 
 ### Notebook, tablet (640–1023 px)
 

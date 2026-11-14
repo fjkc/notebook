@@ -42,7 +42,7 @@ Then `transpilePackages: ["@repo/backend"]` in `frontend/next.config.ts`, `"@rep
 
 Every other dependency is installed by the spec that first uses it (NB-002 → "Dependencies"): shadcn and `zod` in NB-002.3, `@supabase/supabase-js` in NB-002.4, the AI and extraction packages in later milestones.
 
-## M2 · Name and design · open
+## M2 · Name and design · done
 
 - The user picks the app name from 5 original suggestions that don't resemble NotebookLM or well-known products. Chosen: **Notehooked** (NB-005).
 - Design plan proposed and approved, then written to `docs/DESIGN.md`:
@@ -89,14 +89,18 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 
 **Done when:** on production, answers cite the right passages, a citation shows source, page and excerpt, an unanswerable question gets an honest "not in your sources" reply, and a German question gets a German answer. Then tag `v1.0-mvp`.
 
-## M6 · Generated notes (nice-to-have) · open
+## M6 · Generated notes (nice-to-have) · cut
+
+**Cut on 2026-11-14** (user decision): the scope is M3–M5 and M8, so the core works reliably. Kept below as a sketch for "next steps"; not planned.
 
 - `POST /api/notes` for three kinds (briefing, FAQ, study guide, with our own names from the design).
 - Notes area: generate, list, view, delete.
 
 **Done when:** all three kinds generate on production from a notebook with 2+ sources.
 
-## M7 · Audio conversation (stretch, cut first) · open
+## M7 · Audio conversation (stretch) · cut
+
+**Cut on 2026-11-14** (user decision): the scope is M3–M5 and M8, so the core works reliably. Kept below as a sketch for "next steps"; not planned.
 
 - Script generation (structured output), TTS, WAV wrapping, upload to the `audio` bucket, player in the notes area.
 
@@ -125,6 +129,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 | Workflow | Spec-driven; specs and code reach `main` only via PRs; merging a spec PR approves it; one implementation PR per spec, no subtasks (from NB-004) | decided |
 | App name | Notehooked | decided |
 | Design | `docs/DESIGN.md` (NB-005) | decided |
+| Scope | M0–M5 and M8. M6 (generated notes) and M7 (audio) are cut, so the core (sources, grounded chat, citations) gets the time | decided |
 
 ## Known limitations (for the README)
 
@@ -132,3 +137,4 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - Scanned PDFs without a text layer aren't supported.
 - Gemini free-tier rate limits apply; heavy use shows a "try again" message.
 - Processing runs in a serverless function without a queue; very large documents may time out.
+- No generated notes or audio recaps: cut to keep the core reliable (M6, M7); they are the natural next features.
