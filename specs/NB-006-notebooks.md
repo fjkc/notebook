@@ -25,6 +25,7 @@ Users can create, rename and delete their own notebooks, see them on the home pa
 - **R1** **DB helpers** in `backend/src/db/notebooks.ts`, every query filtered by `owner_id` (CLAUDE.md rule 5):
   - `listByOwner(ownerId)`: `id`, `title`, `updated_at` and the number of sources, newest `updated_at` first. The source count comes from one query (`select id, title, updated_at, sources(count)`), not one query per notebook.
   - `insert(ownerId, title)`, `updateTitle(ownerId, id, title)`, `remove(ownerId, id)`, `countByOwner(ownerId)`, and `getOwned(ownerId, id)` returning `id`, `title`, `suggested_questions`, `updated_at` (the existing `findOwned` stays for `assertNotebookOwner`).
+  - Selects, updates, deletes and counts filter with `.eq("owner_id", ownerId)`; `insert` writes `owner_id: ownerId` into the row.
   - Supabase errors become a plain `Error` with the PostgREST code only (same pattern as `findOwned`), so they map to `INTERNAL`.
 - **R2** **Service** `backend/src/services/notebooks.ts`, each function in the shape from `backend/README.md` (validate → authorise → act):
   - `listNotebooks(ownerId)`, `getNotebook(ownerId, id)` (throws `NOT_FOUND` for a malformed, unknown or foreign ID via `assertNotebookOwner`).
@@ -100,16 +101,16 @@ Users can create, rename and delete their own notebooks, see them on the home pa
   - No user steps.
   - Acceptance:
     - CI passes (lint, typecheck, test, build), including the R3 tests.
-    - Every query in `backend/src/db/notebooks.ts` has `.eq("owner_id", ownerId)` (checked by reading, R1).
+    - Every select, update, delete and count in `backend/src/db/notebooks.ts` has `.eq("owner_id", ownerId)`, and `insert` sets `owner_id: ownerId` in the row (checked by reading, R1).
     - On the preview, logged in:
       - "New notebook" shows "Creating…", then opens `/notebook/<id>` titled "Untitled notebook"; the home list shows it with "0 sources · edited <today>".
-      - Rename to "Climate reading": the top bar, the browser tab ("Climate reading · Notehooked") and the home row show the new name. An empty name, a name with a pasted line break and a 121-character name show the R2 messages under the field and don't save.
+      - Rename to "Climate reading": the top bar, the browser tab ("Climate reading · Notehooked") and the home row show the new name. An empty name, a name with a pasted tab character and a 121-character name show the R2 messages under the field and don't save. (Browsers strip line breaks from a single-line input, so newlines are covered by the R3 tests.)
       - Delete asks for confirmation, shows "Deleting…", lands on `/` with the toast "Notebook deleted.", and the row is gone. Deleting the same notebook from a second tab that still shows it also lands on `/` without an error.
       - With a notebook ID changed by one character, and with `/notebook/not-a-uuid`, the page shows the not-found view, and the network tab shows status **404** for the document request.
       - The notebook page shows the three empty states with the R12 copy, at 1280 px (Shelf strip on top, Ask and Reader side by side), 800 px (Reader as a sheet from the right) and 360 px ("Sources (0)" bottom sheet, no horizontal scroll), in light and dark. Typing into the Ask input does nothing.
       - Keyboard only: create, open the menu, rename and delete work; Escape closes the dialogs when nothing is pending.
       - Creating a notebook past the limit (with `MAX_NOTEBOOKS_PER_OWNER` temporarily set to 2 locally) shows "You can have up to 2 notebooks. Delete one to make room." as a toast.
-    - Locally, with `NEXT_PUBLIC_SUPABASE_URL` temporarily pointing to an unreachable host: `/` and `/notebook/<id>` show the R8 error page with "Try again", no stack trace and no raw error text.
+    - Locally, with `NEXT_PUBLIC_SUPABASE_URL=https://unreachable.invalid` set temporarily, then `npm run build` and `npm start` (production mode, so no dev overlay; the `.invalid` name fails fast): `/` and `/notebook/<id>` show the R8 error page with "Try again", no stack trace and no raw error text.
     - Docs updated as in R14.
     - **After merge, on production (M3 "Done when"):** create, rename and delete work, and opening one of your notebook URLs in a private window and logging in there gives a 404.
 
