@@ -6,7 +6,7 @@ import { getAccessEnv, type AccessEnv } from "./env";
 import { passwordMatches } from "./password";
 import { createSessionToken, passwordFingerprint, verifySessionToken } from "./session";
 
-export { getAccessEnv, resetAccessEnvCache, type AccessEnv } from "./env";
+export { getAccessEnv, type AccessEnv } from "./env";
 export { createSessionToken, passwordFingerprint, verifySessionToken } from "./session";
 export { parsePasswordInput, passwordMatches } from "./password";
 export { safeNextPath } from "./next-path";

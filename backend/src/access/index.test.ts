@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSession, getAccessEnv, hasValidSession, isAppPassword, resetAccessEnvCache } from "./index";
+import { getAccessEnv, resetAccessEnvCache } from "./env";
+import { createSession, hasValidSession, isAppPassword } from "./index";
 
 const PASSWORD = "p".repeat(32);
 
