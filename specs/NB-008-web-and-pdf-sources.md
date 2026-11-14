@@ -5,15 +5,16 @@
 The second half of M4 (NB-007 explains the cut). It plugs two new extractors into NB-007's pipeline and adds their tabs to the "Add source" dialog.
 
 ## Goal
-Users can add a web article by its link and upload a PDF of up to 10 MB and 300 pages. Both go through the same pipeline as pasted text and end up `ready` with page-exact chunks (PDF) or `failed` with a clear message: a scanned PDF says it has no selectable text, and a link to `localhost` or a private address is refused.
+Users can add a web article by its link and upload a PDF of up to 10 MB and 100 pages. Both go through the same pipeline as pasted text and end up `ready` with page-exact chunks (PDF) or `failed` with a clear message: a scanned PDF says it has no selectable text, and a link to `localhost` or a private address is refused.
 
 ## Scope
 - **In:**
-  - URL guard (`rag/url-guard.ts`) with tests, and a guarded fetch that re-checks every redirect and every resolved address.
-  - URL extraction with `@mozilla/readability` on `linkedom`.
+  - URL guard (`rag/url-guard.ts`) with tests, and a guarded fetch that pins the checked address and re-checks every redirect.
+  - URL extraction with `@mozilla/readability` on `linkedom`, keeping paragraph breaks.
   - PDF upload: `POST /api/sources/upload-url`, direct upload to Supabase Storage with the signed token, extraction per page with `unpdf`, `NO_TEXT_FOUND`.
-  - Storage cleanup when a PDF source or its notebook is deleted (left out of NB-006).
-  - The "Web page" and "PDF" tabs in the Add source dialog, chip labels "Web page" and "n p.".
+  - The PDF page limit lowered from 300 to 100 (R10).
+  - Storage cleanup when a PDF source or its notebook is deleted (left out of NB-006, recorded in PROGRESS M4 by it).
+  - The "Web page" and "PDF" tabs in the Add source dialog, chip and popover labels.
   - Fixtures: a public-domain PDF of about 50 pages and an image-only PDF.
 - **Out:**
   - OCR for scanned PDFs (a known limitation, PROGRESS).
@@ -24,47 +25,73 @@ Users can add a web article by its link and upload a PDF of up to 10 MB and 300 
 
 ### URL sources
 - **R1** **Dependencies:** `@mozilla/readability`, `linkedom` and `unpdf` in `backend/` (approved in CLAUDE.md).
-- **R2** **URL guard** `rag/url-guard.ts`, pure apart from an injected resolver (ARCHITECTURE §6 "SSRF protection"):
-  - `parsePublicUrl(input)`: `http:` or `https:` only, no username or password in the URL, default port only (none, 80 or 443), hostname not `localhost` or ending in `.localhost`, max 2,048 characters. Otherwise `VALIDATION` with "Enter a link that starts with http:// or https://." (bad scheme or syntax) or "That link points to a private address." (host rules).
-  - `isPublicAddress(ip)`: false for 0.0.0.0/8, 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10 (carrier-grade NAT), 224.0.0.0/4 and above, `::`, `::1`, fc00::/7, fe80::/10, and IPv4-mapped IPv6 (`::ffff:a.b.c.d`) of any of those. Literal IPs in the URL are checked the same way.
-  - `assertPublicHost(hostname, resolve)`: resolves all A and AAAA records with the injected `resolve` and throws `URL_FETCH_FAILED` if any address isn't public.
-- **R3** **Guarded fetch** `rag/fetch-page.ts`: uses `node:http`/`node:https` `request` with a custom `lookup` that resolves the name, rejects non-public addresses (R2) and connects to the checked address, so a DNS answer can't change between check and connect (DNS rebinding). Rules:
+- **R2** **URL guard** `rag/url-guard.ts`, pure (ARCHITECTURE §6 "SSRF protection"):
+  - `parsePublicUrl(input)` checks, in this order, each failure a `VALIDATION` error with its message:
+    1. Longer than 2,048 characters → "Links can be up to 2,048 characters."
+    2. Not parseable by `new URL`, or a scheme other than `http:`/`https:` → "Enter a link that starts with http:// or https://."
+    3. A user name or password in the URL → "Links with a user name or password aren't supported."
+    4. A port other than none, 80 or 443 → "Links with a port number aren't supported."
+    5. Hostname `localhost` or ending in `.localhost`, or a literal IP (also in the forms `new URL` normalises, such as `127.1` or `0x7f000001`) that isn't public → "That link points to a private address."
+  - `isPublicAddress(ip)`:
+    - **IPv4** is public unless in 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.168.0.0/16, 198.18.0.0/15, or 224.0.0.0/3 and above (multicast, reserved, broadcast).
+    - **IPv6** is public only if it's global unicast (2000::/3) and not in 2001::/32 (Teredo), 2001:db8::/32 (documentation) or 2002::/16 (6to4). An IPv4-mapped address (`::ffff:a.b.c.d`) is judged by its IPv4 part. Everything else (`::`, `::1`, fc00::/7, fe80::/10, ff00::/8, 64:ff9b::/96 …) is not public.
+  - `resolveRedirect(currentUrl, location)`: resolves `Location` against the current URL and runs `parsePublicUrl` on the result (a redirect to a private address or another scheme fails with `URL_FETCH_FAILED`, not `VALIDATION`, because it happens during processing).
+  - `createGuardedLookup(resolve)`: returns a function with Node's `dns.lookup` signature for `http(s).request({ lookup })`. It resolves the name with the injected `resolve` (A and AAAA), fails with an error if **any** address isn't public, and answers in the form the caller asked for: with `options.all === true` an array of `{ address, family }` (Node ≥ 20 calls it this way when `autoSelectFamily` is on, the default), otherwise `(err, address, family)` with the first address. The socket then connects only to an address that was checked, so a DNS answer can't change between check and connect (DNS rebinding).
+- **R3** **Guarded fetch** `rag/fetch-page.ts`: `node:http`/`node:https` `request` with `lookup: createGuardedLookup(resolve)`, where `resolve` uses `dns.promises.resolve4` and `resolve6`. It never uses the global `fetch`. Node skips `lookup` for a literal IP host, which is why `parsePublicUrl` and `resolveRedirect` check literal IPs themselves. Rules:
   - Total timeout 10 s (`URL_FETCH_TIMEOUT_MS`), `AbortSignal` based.
-  - At most 3 redirects (`URL_MAX_REDIRECTS`), each `Location` resolved against the current URL and checked with R2 and the lookup again.
-  - Only `200` with `Content-Type: text/html` or `application/xhtml+xml` (else `URL_FETCH_FAILED`).
+  - At most 3 redirects (`URL_MAX_REDIRECTS`), each through `resolveRedirect` and the guarded lookup again.
+  - Only `200` with `Content-Type: text/html` or `application/xhtml+xml`.
   - The body is read as a stream and aborted past 5 MB (`MAX_URL_BYTES`), decoded with the charset from the header (default UTF-8).
   - A plain `User-Agent` naming the app ("Notehooked/1.0 (+source reader)"), no cookies, no other headers.
   - Every failure throws `URL_FETCH_FAILED` with the underlying error as `cause` (logged, never shown).
-- **R4** **Tests** for R2 and R3's pure parts (resolver injected, no network): each blocked range including IPv4-mapped IPv6, `localhost`, `foo.localhost`, `http://127.1`, `http://[::1]`, `http://0x7f000001`, a public IP, credentials in the URL, a non-default port, `ftp:`, `javascript:`, a host resolving to one public and one private address (blocked), and a redirect target check (`Location` to a private address is blocked).
-- **R5** **Extract** `extractUrl(url)` in `rag/extract.ts`: guarded fetch → `linkedom` `parseHTML` → `new Readability(document).parse()`. Result: one page `{ page: null, text: textContent }` and the article title. Less than 200 characters of text (`MIN_URL_TEXT_CHARS`) → `URL_FETCH_FAILED` (the page is empty or rendered by JavaScript). Readability's HTML output is never used or stored, only its text.
-- **R6** **Create:** `createUrlSource(ownerId, { notebookId, url })` validates with R2's `parsePublicUrl` (no DNS yet), applies NB-007's limits, inserts a `pending` source with `url` and a provisional title (hostname plus path, cut to 80 characters). After extraction, `processSource` sets the title to readability's title (trimmed, max 80) when it has one. Server Action `createUrlSource` via `runAction`.
+- **R4** **Tests** (no network; resolvers injected):
+  - `parsePublicUrl`: each rule in R2 with its message, including `http://localhost`, `http://foo.localhost`, `http://127.1`, `http://0x7f000001`, `http://[::1]`, `http://[::ffff:127.0.0.1]`, `ftp://…`, `javascript:…`, `https://user:pw@example.com`, `https://example.com:8080`, a 2,049-character link, and a valid public link.
+  - `isPublicAddress`: one address inside each blocked IPv4 range and at its edges (e.g. 172.15.255.255 public, 172.16.0.0 not), 8.8.8.8 public; IPv6 `2606:4700::1` public, `::1`, `fe80::1`, `fd00::1`, `ff02::1`, `2002::1`, `2001:db8::1`, `::ffff:10.0.0.1` not.
+  - `resolveRedirect`: a relative `Location`, a `Location` to `http://169.254.169.254/` (fails), to `file:///etc/passwd` (fails).
+  - `createGuardedLookup`: with `all: true` returns exactly the resolved public addresses; with `all: false` returns the first; a name resolving to one public and one private address fails in both forms; a resolver error fails.
+  - `htmlToText` (R5): paragraphs, list items and headings come out separated by a blank line; inline elements don't add breaks; script and style content is dropped.
+- **R5** **Extract** `extractUrl(url)` in `rag/extract.ts`: guarded fetch → `linkedom` `parseHTML` → `new Readability(document).parse()`. The page text is `htmlToText(article.content)`: a pure helper (in `rag/html-text.ts`) that parses the HTML with `linkedom` in memory and joins the text of block elements (`p`, `li`, `h1`–`h6`, `blockquote`, `pre`, `td`, `th`, `dt`, `dd`, `figcaption`) with blank lines, so NB-007's chunker sees paragraphs. Readability's HTML is never stored or shown, only this text. Less than 200 characters of text (`MIN_URL_TEXT_CHARS`) → `URL_FETCH_FAILED` (the page is empty or rendered by JavaScript).
+- **R6** **Extractor contract.** NB-007's extractors return `Extracted = { pages: { page: number | null; text: string }[]; title?: string; pageCount?: number }` (text returns `{ pages }`). `processSource` passes `title` (trimmed, max 80, when present) and `pageCount` to `markReady`, which gets two optional fields for them. `pageCount` is the PDF's total number of pages, including blank ones.
+- **R7** **Create:** `createUrlSource(ownerId, { notebookId, url })`: `parsePublicUrl` (no DNS yet), `assertNotebookOwner`, NB-007's limits, then insert a `pending` source with `url` and a provisional title (hostname plus path, cut to 80 characters). After extraction the title becomes readability's title when it has one (R6). Server Action `createUrlSource` via `runAction`, revalidating the notebook page like `createTextSource`.
 
 ### PDF sources
-- **R7** **Upload URL route** `POST /api/sources/upload-url` (`runtime = "nodejs"`, `withRoute`): body `{ notebookId, fileName, fileSize }` (zod: name ends in `.pdf`, case-insensitive, max 200 characters; size a positive integer). Then:
+- **R8** **Upload URL route** `POST /api/sources/upload-url` (`runtime = "nodejs"`, `withRoute`): body `{ notebookId, fileName, fileSize }`.
+  - zod: `fileName` trimmed, 1–200 characters, ends in `.pdf` (case-insensitive), else `VALIDATION` "Choose a PDF file."; `fileSize` a positive integer. Then `assertNotebookOwner`.
   - `fileSize > MAX_PDF_BYTES` → `FILE_TOO_LARGE`; NB-007's source limits apply.
-  - Insert a `pending` source with `type = 'pdf'`, title = file name without `.pdf` (max 80 characters), `storage_path = {owner_id}/{source_id}.pdf`.
+  - Insert a `pending` source with `type = 'pdf'`, title = the file name without `.pdf`, trimmed, max 80 characters, or "Untitled PDF" if that leaves nothing; `storage_path = {owner_id}/{source_id}.pdf`.
   - `createSignedUploadUrl(path)` on the `sources` bucket; return `{ sourceId, path, token }`.
-- **R8** **Client upload:** the PDF tab takes one file (`accept="application/pdf"`, client-side check of type and size first, with the same messages), calls R7, then `uploadToSignedUrl(path, token, file)` with the browser client (`lib/supabase/browser.ts`, publishable key), then calls the process route. The button shows "Uploading…" and then the chip shows "Processing". If the upload fails, the client calls `deleteSource` for the new source and shows "The upload didn't work. Try again." (so no empty `pending` source stays behind).
-- **R9** **Extract** `extractPdf(storagePath, ownerId)`:
-  - Check the path starts with `{ownerId}/` (defence in depth), download from the `sources` bucket with `INGEST_DB_TIMEOUT_MS`, reject more than `MAX_PDF_BYTES` (`FILE_TOO_LARGE`).
-  - `unpdf`: `getDocumentProxy(new Uint8Array(buffer))`, more than `MAX_PDF_PAGES` → `LIMIT_REACHED` "PDFs can have up to 300 pages."; then `extractText(pdf, { mergePages: false })`, giving one string per page, so page `n` gets `page = n` (1-based). Check the installed unpdf version's API.
-  - Total text under 100 characters (`MIN_PDF_TEXT_CHARS`) → `NO_TEXT_FOUND`.
-  - A PDF that can't be parsed (encrypted, corrupt) → `NO_TEXT_FOUND` too, with the cause logged. `processSource` sets `page_count`.
-- **R10** **Storage cleanup:** `deleteSource` removes the source's file from the bucket after deleting the row; `deleteNotebook` (NB-006) lists the notebook's `storage_path`s before deleting and removes them after. A storage error is logged and never fails the delete (an orphaned file is harmless; the bucket is private).
+- **R9** **Client upload:** the PDF tab takes one file (`accept="application/pdf"`). The client checks first: not a PDF (type `application/pdf` or name ending in `.pdf`) → "Choose a PDF file."; over 10 MB → `FILE_TOO_LARGE`'s message. Then it calls R8, then `uploadToSignedUrl(path, token, file)` with the browser client (`lib/supabase/browser.ts`, publishable key), then starts the process call as NB-007 R14 describes. The button shows "Uploading…" until the upload finishes. If R8 or the upload fails, the client calls `deleteSource` for the new source (if one was created) and shows "The upload didn't work. Try again." So no empty `pending` source stays behind from a failed upload in an open tab.
+- **R10** **Page limit.** `MAX_PDF_PAGES` becomes **100** (was 300). A 100-page PDF is about 300–500 chunks: up to five embedding batches plus one summary call, which fits the 60 s `maxDuration` (kept well below the 5-minute stuck window, NB-007 R12) and is closer to what the Gemini free tier allows per minute (NB-007 R16). A 300-page PDF would risk both. The limit message is built from the constant: "PDFs can have up to 100 pages."
+- **R11** **Extract** `extractPdf(storagePath, ownerId)`:
+  - Check the path starts with `{ownerId}/` (defence in depth), then download from the `sources` bucket with `INGEST_DB_TIMEOUT_MS`.
+  - **Missing object** (the upload never finished, e.g. the tab was closed mid-upload) → a new error code `UPLOAD_INCOMPLETE` (422, "The upload didn't finish. Delete this source and add the PDF again."), added to `shared/error-codes.ts` and ARCHITECTURE §11. Other storage errors → `INTERNAL`.
+  - More than `MAX_PDF_BYTES` → `FILE_TOO_LARGE`.
+  - `unpdf`: `getDocumentProxy(new Uint8Array(buffer))`; more than `MAX_PDF_PAGES` pages → `LIMIT_REACHED` with R10's message; then `extractText(pdf, { mergePages: false })`, one string per page, so page `n` gets `page = n` (1-based). Check the installed unpdf version's API.
+  - Total text under 100 characters (`MIN_PDF_TEXT_CHARS`) → `NO_TEXT_FOUND`. A PDF that can't be parsed (encrypted, corrupt) → `NO_TEXT_FOUND` too, with the cause logged.
+  - Returns `{ pages, pageCount }` (R6).
+- **R12** **Storage cleanup:** `deleteSource` removes the source's file from the bucket after deleting the row; `deleteNotebook` (NB-006) lists the notebook's `storage_path`s (owner-scoped) before deleting and removes them after. A storage error is logged and never fails the delete (an orphaned file is harmless; the bucket is private).
 
 ### UI and fixtures
-- **R11** **Add source dialog** gets three tabs in this order: "PDF", "Web page", "Paste text" (keyboard: arrow keys between tabs, Radix). The "Web page" tab has one URL input and "Add source"; a validation error shows under the field. Chip labels: "Web page" for URLs, "n p." for PDFs. The source popover shows "Web page · example.org" with the link (`rel="noopener noreferrer"`, `target="_blank"`) or "PDF · n pages".
-- **R12** **Fixtures** in `fixtures/` with a line each in `fixtures/README.md` (source URL and licence):
-  - A text PDF of about 40–60 pages, under 10 MB, from a public-domain source (a US federal government publication; the implementer picks one and records the link).
-  - `scanned.pdf`: an image-only PDF of one or two pages (made from a fixture page rendered to an image), so `NO_TEXT_FOUND` can be tested.
-- **R13** **Docs:**
-  - ARCHITECTURE §6: the guarded fetch with the pinned lookup (R3), the extra blocked ranges (R2), `MIN_URL_TEXT_CHARS`, and the upload clean-up on failure (R8).
-  - `docs/PROGRESS.md`: M4 is still checked on production after merge (its "Done when"); the implementing PR doesn't mark it done.
+- **R13** **Add source dialog** gets three tabs in this order: "PDF", "Web page", "Paste text" (keyboard: arrow keys between tabs, Radix). The "Web page" tab has one URL input and "Add source" ("Adding…" while pending); a validation error shows under the field.
+  - **Chips:** "Web page" for URLs; for PDFs "PDF" until `page_count` is set, then "n p.".
+  - **Popover:** "Web page · example.org" with a link to the URL (`rel="noopener noreferrer"`, `target="_blank"`); for PDFs "PDF" or "PDF · n pages".
+- **R14** **Fixtures** in `fixtures/` with a line each in `fixtures/README.md` (source URL and licence):
+  - A text PDF of about 40–60 pages, under 10 MB, from a public-domain source: a US federal government publication; the implementer picks one and records the link.
+  - `scanned.pdf`, an image-only PDF made on macOS from page 1 of that PDF:
+    ```bash
+    qlmanage -t -s 1400 -o "$TMPDIR" fixtures/<the-pdf>.pdf      # renders page 1 to a PNG
+    sips -s format pdf "$TMPDIR/<the-pdf>.pdf.png" --out fixtures/scanned.pdf
+    ```
+    The implementer checks with `unpdf` that it yields less than 100 characters of text.
+- **R15** **Docs:**
+  - ARCHITECTURE §6: the guarded fetch with the pinned lookup and redirect checks (R2, R3), the full blocked ranges, `htmlToText`, the extractor contract (R6), the upload clean-up (R9), `MAX_PDF_PAGES` 100 and why (R10); §6 "Limits": `URL_FETCH_TIMEOUT_MS`, `URL_MAX_REDIRECTS`, `MAX_URL_BYTES`, `MIN_URL_TEXT_CHARS`, `MIN_PDF_TEXT_CHARS`; §11: `UPLOAD_INCOMPLETE` and the URL `VALIDATION` messages; §10: `deleteNotebook` now removes storage files.
+  - `backend/README.md` Layout: `rag/fetch-page.ts`, `rag/html-text.ts`.
+  - `docs/PROGRESS.md`: M4's storage-cleanup bullet (from NB-006) is covered; "Known limitations" gets "PDFs can have up to 100 pages". M4 is marked done only after the production check, not in the implementing PR.
 
 ## Design
 
 **Files**
-- Backend: `rag/{url-guard,url-guard.test,fetch-page,extract}.ts`, `services/sources.ts`, `services/notebooks.ts`, `db/sources.ts`, `shared/limits.ts`.
+- Backend: `rag/{url-guard,url-guard.test,fetch-page,html-text,html-text.test,extract}.ts`, `services/{sources,notebooks}.ts`, `db/sources.ts`, `shared/{limits,error-codes}.ts`.
 - Frontend: `app/api/sources/upload-url/route.ts`, `app/notebook/[id]/actions.ts`, `components/notebook/{add-source-dialog,url-source-form,pdf-source-form,source-chip,source-popover}.tsx`.
 - `fixtures/` (two PDFs, README lines).
 
@@ -73,13 +100,12 @@ Users can add a web article by its link and upload a PDF of up to 10 MB and 300 
 **Rejected alternatives**
 - **Global `fetch` with a DNS check before the call:** the name is resolved again on connect, so a rebinding DNS server could answer differently. Pinning the checked address in `lookup` closes that without a new dependency (`undici`'s `Agent` would need one).
 - **Uploading PDFs through our route:** Vercel's 4.5 MB body limit (ARCHITECTURE §2).
-- **Keeping readability's HTML for nicer formatting:** stored HTML would need sanitising before it could ever be shown; the Reader only needs text.
-
-**Function time.** A 50-page PDF is about 150–250 chunks, so two or three embedding batches; download, parse and summary fit in the 60 s `maxDuration`. Vercel Hobby allows up to 300 s, which is the fallback if a real 300-page PDF needs it (a one-line change, noted in the PR if it happens).
+- **Readability's `textContent`:** it glues paragraphs together, which the chunker needs to keep apart.
+- **Keeping 300 pages with a 300 s `maxDuration`:** it would equal the 5-minute stuck window (a running source could be claimed twice) and would likely exceed the free-tier quota anyway.
 
 **Dependencies.** `unpdf`, `@mozilla/readability`, `linkedom` (approved).
 
-**Size.** About 650–750 changed lines of code and tests (guard and tests ~280, guarded fetch ~100, extractors ~90, upload route and service ~80, dialog tabs and upload client ~150, cleanup ~30), plus fixtures.
+**Size.** About 700–800 changed lines of code and tests (guard, lookup and tests ~320, guarded fetch ~90, HTML text and extractors with tests ~120, upload route and service ~80, dialog tabs and upload client ~130, cleanup ~30), plus fixtures.
 
 ## Implementation
 
@@ -87,20 +113,24 @@ Users can add a web article by its link and upload a PDF of up to 10 MB and 300 
   - No user steps.
   - Acceptance:
     - CI passes, including every case in R4.
-    - `grep -rn "fetch(" backend/src/rag` finds no direct `fetch` of user URLs: URL sources only go through `fetch-page.ts`.
+    - `grep -rn "fetch(" backend/src/rag` returns no matches: URL sources only go through `fetch-page.ts` (node:http/https).
     - On the preview, logged in:
-      - An article link (e.g. a Wikipedia article) reaches `ready`; the chip says "Web page", the title is the article's title, the popover links to it.
-      - `http://localhost:3000`, `http://127.0.0.1`, `http://169.254.169.254/latest/meta-data/` and `http://[::1]/` are refused with "That link points to a private address." (or fail with `URL_FETCH_FAILED` after DNS), and nothing is fetched.
-      - A link to a PDF or an image fails with "We couldn't read that page. Check the link or paste the text instead."
-      - The fixture PDF (~50 pages) reaches `ready`; the chip shows "n p."; in Supabase its chunks have `page` from 1 to n, and `page_count = n`.
+      - An article link (e.g. a Wikipedia article) reaches `ready`; the chip says "Web page", the title is the article's title, the popover links to it (opens in a new tab), and in Supabase its chunks start at paragraph boundaries rather than mid-sentence.
+      - `http://localhost:3000`, `http://127.0.0.1`, `http://169.254.169.254/latest/meta-data/` and `http://[::1]/` show "That link points to a private address." under the field, and no source row is created. `https://example.com:8080/` shows the port message.
+      - A link to a PDF or an image, and a page with almost no text, fail with "We couldn't read that page. Check the link or paste the text instead."
+      - The fixture PDF (~50 pages) reaches `ready`; the chip shows "PDF" while processing and "n p." after; in Supabase its chunks have `page` between 1 and n, and `page_count = n`.
       - `scanned.pdf` fails with "This PDF has no selectable text. Scanned PDFs aren't supported yet."
-      - An 11 MB file is refused in the browser and, with the client check bypassed (curl to R7 with `fileSize` 11 MB), by the route with `FILE_TOO_LARGE`.
+      - A PDF of more than 100 pages fails with "PDFs can have up to 100 pages."; a password-protected PDF fails with the `NO_TEXT_FOUND` message.
+      - An 11 MB file is refused in the browser; with the client check bypassed (curl to R8 with `fileSize` 11534336), the route answers 400 `FILE_TOO_LARGE`. A `.docx` file shows "Choose a PDF file."
+      - **Upload failure:** with the Supabase storage host blocked in DevTools (request blocking), adding a PDF shows "The upload didn't work. Try again." and no chip stays behind.
+      - **Abandoned upload:** a PDF source created through R8 without uploading the file (curl), after 5 minutes and "Try again", fails with the `UPLOAD_INCOMPLETE` message.
       - Deleting a PDF source and deleting a notebook with a PDF remove the files from the `sources` bucket (Storage browser).
       - The dialog's tabs work by keyboard; at 360 px the dialog fits without horizontal scroll.
+    - Docs updated as in R15.
     - **After merge, on production (M4 "Done when"):** a ~50-page PDF, an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
 
 ## Open questions
-None. (The fixture PDF is picked during implementation from US federal public-domain publications, R12; say if you'd rather choose it.)
+None. (The fixture PDF is picked during implementation from US federal public-domain publications, R14; say if you'd rather choose it. Lowering the page limit to 100 is a decision in R10; say if you'd rather keep 300.)
 
 ## Notes
 Deviations found during implementation, one line each.
