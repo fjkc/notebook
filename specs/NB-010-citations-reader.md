@@ -28,7 +28,7 @@ Every citation in an answer is a hook. Pressing it opens the Reader with the sou
   - While an answer streams, hooks appear as their numbers arrive (the citation map comes on `start`).
 - **R2** **Notebook state.** A small client context `notebook-state.tsx`, provided by the notebook layout component, shared by Shelf, Ask and Reader. The page stays a Server Component and passes the sources list in. It holds:
   - the **active citation** (`{ messageId, n }` → its `Citation`);
-  - the **excluded source IDs** (R6).
+  - the **excluded source IDs** (R7).
   - Pressing a hook sets the active citation; pressing the active hook again, the Reader's "Close" button, or closing a Reader sheet in any way (Escape, the scrim, swiping) clears it.
   - A history message carries its citations from the database (NB-009 R7), so hooks in old answers work the same as new ones.
 - **R3** **Reader** (`components/notebook/reader.tsx`). It uses the `Citation` plus the source's `type` and `summary` from the notebook's sources list (passed in through R2's provider); no new API.
@@ -42,10 +42,10 @@ Every citation in an answer is a hook. Pressing it opens the Reader with the sou
 
 ### Suggested questions
 - **R5** **Generating** (backend, ARCHITECTURE §6 step 8):
-  - `suggestedQuestionsPrompt(summaries)` in `ai/prompts.ts`, from ARCHITECTURE §12, with the summaries inside `<summaries>…</summaries>` marked as data whose instructions are ignored. Called with `generateText` and `output: Output.object({ schema: z.object({ questions: z.array(z.string()) }) })` (the AI SDK's current structured-output API; check the installed version), `maxRetries: 2`.
+  - `suggestedQuestionsPrompt(summaries)` in `ai/prompts.ts`, from ARCHITECTURE §12, with the summaries inside `<summaries>…</summaries>` marked as data whose instructions are ignored. Called with `generateText` and `output: Output.object({ schema: z.object({ questions: z.array(z.string()) }) })` (the AI SDK's current structured-output API; check the installed version), with `maxRetries: 0` and its own `abortSignal: AbortSignal.timeout(SUGGESTIONS_TIMEOUT_MS)` (10 s, in limits). NB-007's processing budget is 45 s, so the process route still answers within its 60 s `maxDuration`; a timeout is a swallowed failure like any other.
   - The result is cleaned, not rejected: items trimmed, empty ones and ones over 120 characters dropped, the first 5 kept. 1–5 questions are stored; 0 after cleaning keeps the old ones.
   - `refreshSuggestedQuestions(ownerId, notebookId)` in `services/notebooks.ts`: loads the summaries of all ready sources (owner-scoped); none → stores `[]` without a Gemini call; otherwise generates and stores with `db/notebooks.setSuggestedQuestions(ownerId, id, questions)`.
-  - Called at the end of `processSource` after `markReady`, **before** the process route responds, and at the end of `deleteSource`. A failure is logged and swallowed: it never fails the source or the delete.
+  - Called at the end of `processSource` after `markReady`, **before** the process route responds, and at the end of `deleteSource` only when the deleted source was `ready` (deleting a pending or failed source doesn't change the summaries, so it doesn't wait for Gemini). A failure is logged and swallowed: it never fails the source or the delete.
   - Because NB-007's client refreshes the page when the process call settles, the chips appear without a reload.
   - **Test:** the cleaning rules (empty, too long, more than 5, all invalid).
 - **R6** **Showing.** When the chat is empty and at least one source is ready, the ready-but-empty Ask state (NB-009 R12) shows up to 5 questions from `notebooks.suggested_questions` under its copy, as outline buttons (4 px radius, Plex Sans, wrapping). Pressing one sends it through the same path as the input, with the same `sourceIds` rule (R7). With no ready source they're hidden. While every ready source is excluded they're `aria-disabled` with the R7 message.
