@@ -110,7 +110,7 @@ Users can create, rename and delete their own notebooks, see them on the home pa
       - The notebook page shows the three empty states with the R12 copy, at 1280 px (Shelf strip on top, Ask and Reader side by side), 800 px (Reader as a sheet from the right) and 360 px ("Sources (0)" bottom sheet, no horizontal scroll), in light and dark. Typing into the Ask input does nothing.
       - Keyboard only: create, open the menu, rename and delete work; Escape closes the dialogs when nothing is pending.
       - Creating a notebook past the limit (with `MAX_NOTEBOOKS_PER_OWNER` temporarily set to 2 locally) shows "You can have up to 2 notebooks. Delete one to make room." as a toast.
-    - Locally, with `NEXT_PUBLIC_SUPABASE_URL=https://unreachable.invalid` set temporarily, then `npm run build` and `npm start` (production mode, so no dev overlay; the `.invalid` name fails fast): `/` and `/notebook/<id>` show the R8 error page with "Try again", no stack trace and no raw error text.
+    - Locally, with `NEXT_PUBLIC_SUPABASE_URL=https://unreachable.invalid` set temporarily, then `npm run build` and `npm start -w frontend` (production mode, so no dev overlay; the `.invalid` name fails fast): `/` and `/notebook/<id>` show the R8 error page with "Try again", no stack trace and no raw error text.
     - Docs updated as in R14.
     - **After merge, on production (M3 "Done when"):** create, rename and delete work, and opening one of your notebook URLs in a private window and logging in there gives a 404.
 
