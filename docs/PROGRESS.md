@@ -39,7 +39,7 @@ npm install
 ```
 Then `transpilePackages: ["@repo/backend"]` in `frontend/next.config.ts`, `"@repo/backend": "*"` in `frontend/package.json`, and the scripts: `typecheck` is `next typegen && tsc --noEmit` in `frontend/` and `tsc --noEmit` in `backend/`, `test` is `vitest run --passWithNoTests` in `backend/`.
 
-Every other dependency is installed by the subtask that first uses it (NB-002 → "Dependencies"): shadcn and `zod` in NB-002.3, `@supabase/supabase-js` in NB-002.4, the AI and extraction packages in later milestones.
+Every other dependency is installed by the spec that first uses it (NB-002 → "Dependencies"): shadcn and `zod` in NB-002.3, `@supabase/supabase-js` in NB-002.4, the AI and extraction packages in later milestones.
 
 ## M2 · Name and design · open
 

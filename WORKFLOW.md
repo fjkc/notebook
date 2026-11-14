@@ -23,8 +23,9 @@ There are no status fields to keep in sync. To see where things stand, look at t
 - A spec covers one or more tasks of a milestone in `docs/PROGRESS.md`. It references `docs/ARCHITECTURE.md` instead of repeating it.
 - **One spec, one implementation PR.** There are no subtasks. The spec's "Implementation" section has one checkbox with the branch name and the acceptance criteria, and the implementing PR ticks it.
   - The app builds and works after the PR merges.
-  - If a work package is clearly too big for one reviewable PR, it becomes two specs, each with its own ID, not subtasks.
-  - Specs before NB-004 (NB-001, NB-002, NB-003's original draft) used subtasks `NB-XXX.n`; their history stays as it is.
+  - **Size:** if a work package would be too big for one reviewable PR (roughly over 800 changed lines of code and tests, not counting lockfiles, generated files and Markdown), it becomes two specs, each with its own ID, not subtasks.
+  - Specs before NB-004 (NB-001, NB-002, NB-003's original draft) used subtasks `NB-XXX.n`. Their history stays as it is, and a subtask that's still open (NB-002.5) finishes under the old rule.
+- **Spec PR titles:** a new spec is `docs(NB-XXX): spec for <topic>`, a change to an approved spec is `docs(NB-XXX): spec change: <what>`. Both start with the word "spec", which is how `/review` routes them to the spec-reviewer and how `/implement` tells them from the implementation PR, whose title never starts with "spec".
 
 ## 2. Writing a spec
 
@@ -118,7 +119,7 @@ Two to four sentences: what this PR does and why, in plain language.
 Triggered by `/review [PR number] [--security | --no-security]`, or by asking "review PR 5". The steps are in `.claude/skills/review/SKILL.md`.
 
 - **Who reviews:**
-  - **Spec PRs** (title `docs(NB-XXX): spec for …`, Markdown only): `spec-reviewer` alone, plus `security-audit` with `--security`. It reads the spec as a new developer or agent session would, and checks logic, gaps, hidden open questions, missing definitions and decisions, testability and size.
+  - **Spec PRs** (title `docs(NB-XXX): spec …`, Markdown only): `spec-reviewer` alone, plus `security-audit` with `--security`. It reads the spec as a new developer or agent session would, and checks logic, gaps, hidden open questions, missing definitions and decisions, testability and size.
   - **Code PRs:**
     - `reviewer` always runs: spec and acceptance criteria, correctness, simplification, architecture, integration and deployment, project rules, and a security triage.
     - `bugfinder` always runs: races, edge cases, async and error handling, framework pitfalls.

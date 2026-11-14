@@ -38,7 +38,7 @@ git status --porcelain -- .claude CLAUDE.md   # must print nothing (catches untr
   - The spec path comes from the spec link in the body (`specs/NB-003-….md`).
   - If either is missing, use `none`. The reviewer then flags the missing link.
 - **Kind of PR:**
-  - `spec` if the title is `docs(NB-XXX): spec for …` (spec ID without a subtask number), **and** every changed file is Markdown, **and** at least one is `specs/NB-*.md`.
+  - `spec` if the title starts with `docs(NB-XXX): spec` (`spec for …` or `spec change: …`, spec ID without a subtask number), **and** every changed file is Markdown, **and** at least one is `specs/NB-*.md`.
   - `code` otherwise.
   - If the user says which kind it is, that wins.
 - `local_head_matches`: `true` only if `git rev-parse HEAD` equals `headRefOid` and `git status --porcelain` is empty.

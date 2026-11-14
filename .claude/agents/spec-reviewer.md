@@ -45,7 +45,7 @@ Merging a spec PR approves the spec (`WORKFLOW.md`), so this is the last check b
    - Is every criterion concrete and checkable: a command, an observable behaviour, a URL?
    - Flag criteria that can only be judged by opinion.
 7. **Size and implementation.** The whole spec is implemented in **one PR** (`WORKFLOW.md` §1). Also check:
-   - it fits one reviewable PR; if it's clearly too big, suggest splitting it into two specs, never into subtasks,
+   - it fits one reviewable PR (size in `WORKFLOW.md` §1); if it's too big, suggest splitting it into two specs, never into subtasks,
    - the "Implementation" section has one checkbox, a branch name that follows `WORKFLOW.md`, and acceptance criteria,
    - `**Depends on:**` names the right specs.
 8. **Scope and fit.**

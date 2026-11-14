@@ -23,15 +23,16 @@ Arguments: `$ARGUMENTS`
   ```bash
   gh pr list --state open --json number,title,url
   ```
-  The spec PR's title is `docs(NB-XXX): spec for …`; the implementation PR is any other title with the scope exactly `(NB-XXX)`.
+  Spec PRs have titles starting with `docs(NB-XXX): spec` (`spec for …` for a new spec, `spec change: …` for a change, `WORKFLOW.md` §1). The implementation PR is any other title with the scope exactly `(NB-XXX)`.
 
 ## 2. Check, and refuse if anything fails
 
 Run every check before changing anything. If one fails, **stop, change nothing, and say which check failed and what would fix it**:
 - **The spec exists on `main`.** If not:
   - an open spec PR for `NB-XXX` exists (PR lookup above): "NB-XXX isn't approved yet: its spec PR #n is still open. Merge it first."
+- **No spec change is pending:** if an open `docs(NB-XXX): spec change: …` PR exists, stop: "A change to NB-XXX is still open in #n. Merge or close it first."
   - otherwise: "There's no spec NB-XXX. Write it with `/spec` first."
-- **"Implemented" is unticked** (`- [ ] **Implemented**`). Ticked means it's done. A spec from before NB-004 that still has subtasks: say so and ask whether to implement its remaining subtasks in one PR.
+- **"Implemented" is unticked** (`- [ ] **Implemented**`). Ticked means it's done. A spec from before NB-004 that still has subtasks finishes under the old rule (`WORKFLOW.md` §1): say so and stop.
 - **"Open questions" in the spec is empty** (`None.` or nothing).
 - **Dependencies are done:** every spec in `**Depends on:**` is ticked on `main` (its "Implemented" box, or all subtasks for older specs).
 - **No open implementation PR exists** for this spec (PR lookup above).

@@ -16,7 +16,7 @@ Arguments: `$ARGUMENTS`
 - **Without a topic:** propose the next one, then **stop and wait** for the user to confirm or pick another.
   - Read from an up-to-date `origin/main`, not the local checkout, which may be stale or another branch: `git fetch origin main`, then `git show origin/main:docs/PROGRESS.md` and `git ls-tree --name-only origin/main specs/`.
   - Take the first open milestone and its tasks in order.
-  - Skip tasks already covered by a spec on `main` or by an open spec PR (`gh pr list --state open --json number,title`, titles `docs(NB-XXX): spec for …`).
+  - Skip tasks already covered by a spec on `main` or by an open spec PR (`gh pr list --state open --json number,title`, titles starting with `docs(NB-XXX): spec`).
   - Propose one package in a few lines: the tasks it covers, a rough size, and anything the user must provide (keys, choices).
 
 ## 2. Check and branch
@@ -43,7 +43,7 @@ git switch -c docs/NB-XXX-spec
 
 `specs/NB-XXX-short-name.md`, from `specs/_template.md`. Keep every section of the template.
 - **Requirements:** numbered, each testable. Reference `docs/ARCHITECTURE.md` instead of repeating it. If the spec needs a design change, say so in "Design"; the implementation PR updates ARCHITECTURE.md.
-- **Implementation:** one checkbox with the branch name, user steps if any, and concrete acceptance criteria for every requirement (commands, behaviour, preview URL). Checks that can only happen on production say so. No subtasks: the whole spec is one PR (`WORKFLOW.md` §1). If the work is clearly too big for one reviewable PR, propose two specs instead.
+- **Implementation:** one checkbox with the branch name, user steps if any, and concrete acceptance criteria for every requirement (commands, behaviour, preview URL). Checks that can only happen on production say so. No subtasks: the whole spec is one PR (`WORKFLOW.md` §1). If the work would exceed the size in `WORKFLOW.md` §1, propose two specs instead.
 - **Dependencies:** `**Depends on:**` names the spec IDs that must be done first, or `–`.
 - **Open questions:** everything that affects scope, design, cost or the data model and isn't already decided in the docs. Don't decide those silently. Leave the section as `None.` only if there really are none.
 - New dependencies outside the approved list in `CLAUDE.md` are an open question, with one line on why.
@@ -52,7 +52,7 @@ git switch -c docs/NB-XXX-spec
 
 - Commit: `docs(NB-XXX): add spec for <topic>`, with the attribution lines the session requires.
 - Push and open the PR as in `WORKFLOW.md` §4.
-  - **Title:** `docs(NB-XXX): spec for <topic>`. The words "spec for" are how `/review` recognises a spec PR and routes it to the spec-reviewer.
+  - **Title:** `docs(NB-XXX): spec for <topic>` (a later change to an approved spec: `docs(NB-XXX): spec change: <what>`). The leading word "spec" is how `/review` recognises a spec PR and routes it to the spec-reviewer.
   - **Body:** spec link first (absolute URL on the `docs/NB-XXX-spec` branch), then the §4 sections. "Changes" describes what the spec proposes, "Decisions" the choices it makes and what was rejected, "Impact" what implementing it will change. Close with: **Merging this PR approves the spec.**
 - Tell the user the commit hash and that it's pushed.
 
