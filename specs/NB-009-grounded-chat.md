@@ -57,9 +57,10 @@ Users can ask questions in a notebook and get streamed answers built only from t
   - `streamText` with `TEXT_MODEL`, the system prompt, the history as text-only model messages plus the new question, `maxRetries: 2`, temperature 0.2, and `abortSignal: request.signal`, so "Stop" (the client closing the request) stops generation.
   - The response is a UI message stream with **message metadata** `{ citations: Citation[] }` sent on the stream's `start` part (the full map; the client shows only numbers present in the text). AI SDK 7 builds this with `toUIMessageStream({ stream, messageMetadata })` and `createUIMessageStreamResponse` (or `result.toUIMessageStreamResponse({ messageMetadata })` if the installed version still has it); check the installed version's docs and update CLAUDE.md → "Version gotchas" to what it uses.
   - **Saving:** `saveAnswer` runs in `streamText`'s `onFinish`, which fires only when generation completes. On abort (`onAbort`) or error (`onError`) nothing is saved; the user message stays (a resend inserts a new one, and `getHistory` collapses the pair).
-  - **Empty answer:** if generation finishes with no text after trimming (e.g. a safety block), nothing is saved, the stream ends with an error whose text is INTERNAL's message, and the log line has the outcome `empty`.
+  - **Empty answer:** if generation finishes with no text after trimming (e.g. a safety block), nothing is saved and the client gets an error. Mechanism: the response is built with `createUIMessageStream`; its `execute` merges `result.toUIMessageStream({ messageMetadata, sendFinish: false })` into the writer, awaits the final text, and when `isEmptyAnswer(text)` (a pure helper, unit-tested: empty, whitespace-only, non-empty) writes an error part with INTERNAL's message before finishing; otherwise it writes the finish part. Check the installed AI SDK version's docs for the exact option and part names. The client shows the R12 inline error line with "Try again" and removes the empty assistant message from the list (`setMessages`). The log line has the outcome `empty`.
   - **Failed save:** `saveAnswer` errors are caught inside `onFinish` and logged (outcome `error`, code `INTERNAL`, details via `describeError`); the streamed answer stays on screen and nothing else is sent to the client. After a reload that answer is missing, which is acceptable for a rare database failure.
   - **Errors during the stream:** the UI stream's `onError` only maps the message; it doesn't log. It returns only the user message for the mapped code (`toAiError`, NB-007), e.g. "Lots of requests right now. Try again in a minute." for a 429, and INTERNAL's message for anything else. Never a raw error.
+  - **Log outcomes:** `LogFields.outcome` in `backend/src/log.ts` grows from `"ok" | "error"` to `"ok" | "error" | "aborted" | "empty"`, and `buildLogLine` allow-lists the two new values (`aborted` at level `info`, `empty` at level `error`), with a case for each in `log.test.ts`.
   - **Logging, one line per request:** `withRoute` gets an option `{ streaming: true }`: it still logs errors thrown before the response, but not the successful return of a stream. The route logs the one `logOperation` line itself from `streamText`'s `onFinish` (outcome `ok`, or `empty`), `onAbort` (`aborted`) or `onError` (the error code). As everywhere (`lib/http.ts`), an error with a cause may add one `console.error` detail line. ARCHITECTURE "Observability" notes this.
 
 ### Frontend
@@ -87,7 +88,7 @@ Users can ask questions in a notebook and get streamed answers built only from t
 ## Design
 
 **Files**
-- Backend: `shared/{citations,citations.test,limits,index}.ts`, `rag/retrieve.ts`, `ai/prompts.ts` (+ test), `db/{messages,sources}.ts`, `services/{chat,chat-history}.ts` (+ tests), `index.ts`.
+- Backend: `shared/{citations,citations.test,limits,index}.ts`, `rag/retrieve.ts`, `ai/prompts.ts` (+ test), `db/{messages,sources}.ts`, `services/{chat,chat-history}.ts` (+ tests), `log.ts` (+ test), `index.ts`.
 - Frontend: `app/api/chat/route.ts`, `lib/http.ts` (`streaming` option), `app/notebook/[id]/page.tsx`, `components/notebook/{ask,message-list,answer-markdown,remark-citations,ask-input}.tsx`.
 - No schema change (`messages` and `match_chunks` exist).
 
@@ -116,6 +117,7 @@ Users can ask questions in a notebook and get streamed answers built only from t
       - Reloading shows the same conversation; in Supabase the assistant row's `citations` hold only the numbers used in its text.
       - "Stop" during a stream ends it; after a reload only the question is in the history. Sending the same question again answers it, and after a reload the question shows once. Asking a **different** question right after a "Stop" also gets an answer (no consecutive user turns reach the model).
       - **Errors:** with the Gemini key temporarily wrong on a local run, a question shows the inline error line and "Try again"; after fixing the key, "Try again" answers, and after a reload the question shows once.
+      - **Empty answer,** locally with the route temporarily forcing an empty text: the inline error line shows, no empty bubble stays, nothing is saved, and the log line has the outcome `empty`. (The failed-save path is checked by reading: `saveAnswer` is wrapped in try/catch inside `onFinish`.)
       - Enter sends, Shift+Enter adds a line; the counter appears at 1,800 characters.
       - In a notebook without ready sources the input is disabled with "Add a source first", and enables itself when a pasted text becomes ready; then the R12 ready-but-empty copy shows.
       - At 360 px the Ask pane fills the screen, the input stays sticky at the bottom, and nothing scrolls sideways; light and dark.
