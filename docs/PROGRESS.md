@@ -8,7 +8,7 @@ Follow `infra/README.md` → "Setup from scratch", steps 1–5: Gemini key, Supa
 
 **Done when:** `frontend/.env.local` is filled in and the schema is applied.
 
-## M1 · Tooling, scaffold and first deployment · open
+## M1 · Tooling, scaffold and first deployment · done
 
 1. **Tooling (next up):** project slash commands so the workflow runs the same way every time:
    - `/spec`: propose or write the next spec on a `docs/NB-XXX-spec` branch and open the spec PR.
