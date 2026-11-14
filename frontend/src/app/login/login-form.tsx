@@ -11,7 +11,7 @@ export function LoginForm({ next }: { next: string }) {
   const [state, formAction, pending] = useActionState(logIn, initialState);
 
   return (
-    <form action={formAction} className="flex w-full flex-col gap-3">
+    <form action={formAction} className="flex w-full flex-col gap-2">
       <input type="hidden" name="next" value={next} />
       <label htmlFor="password" className="text-sm font-medium">
         Password
@@ -26,11 +26,11 @@ export function LoginForm({ next }: { next: string }) {
         aria-describedby={state.error ? "login-error" : undefined}
       />
       {state.error && (
-        <p id="login-error" role="alert" className="text-sm text-destructive">
+        <p id="login-error" role="alert" className="text-sm text-danger">
           {state.error}
         </p>
       )}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className="mt-1 w-full">
         {pending ? "Opening…" : "Open the app"}
       </Button>
     </form>
