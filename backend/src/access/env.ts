@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-// The access gate's two secrets (CLAUDE.md rule 2). Deliberately not "server-only": the proxy
-// imports this module. Never import it from a Client Component, and never prefix these with NEXT_PUBLIC_.
+// The access gate's two secrets (CLAUDE.md rule 2). Deliberately without the server guard of the
+// main entry: the proxy imports this module. Never import it from a Client Component, and never prefix these with NEXT_PUBLIC_.
 
 const AccessEnv = z.object({
   APP_PASSWORD: z.string().min(24),
