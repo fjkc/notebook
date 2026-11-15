@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { AppError, getNotebook, listSources, type Notebook, type SourceListItem } from "@repo/backend";
+import {
+  AppError,
+  getHistory,
+  getNotebook,
+  listSources,
+  type ChatMessage,
+  type Notebook,
+  type SourceListItem,
+} from "@repo/backend";
 import { NotebookLayout } from "@/components/notebook/notebook-layout";
 import { NotebookMenu } from "@/components/notebook/notebook-menu";
 import { TopBar } from "@/components/shell/top-bar";
@@ -40,11 +48,21 @@ export default async function NotebookPage({ params }: PageProps<"/notebook/[id]
     if (error instanceof AppError && error.code === "NOT_FOUND") notFound(); // deleted meanwhile
     toLoggedErrorBody(error, "notebookPage.listSources");
   }
+  // The conversation, so a reload shows it without a client fetch (NB-009 R12). Like the sources, a
+  // failed load doesn't swap the page for the error page mid-poll (the Shelf refreshes it every 2 s):
+  // Ask keeps the messages it has, or says it couldn't load them.
+  let history: ChatMessage[] | null = null;
+  try {
+    history = await getHistory(await getOwnerId(), notebook.id);
+  } catch (error) {
+    if (error instanceof AppError && error.code === "NOT_FOUND") notFound(); // deleted meanwhile
+    toLoggedErrorBody(error, "notebookPage.getHistory");
+  }
 
   return (
     <div className="flex h-dvh flex-col">
       <TopBar title={notebook.title} actions={<NotebookMenu id={notebook.id} title={notebook.title} />} />
-      <NotebookLayout notebookId={notebook.id} sources={sources} />
+      <NotebookLayout notebookId={notebook.id} sources={sources} history={history} />
     </div>
   );
 }

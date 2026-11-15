@@ -105,7 +105,7 @@ Users can ask questions in a notebook and get streamed answers built only from t
 
 ## Implementation
 
-- [ ] **Implemented** (`feat/NB-009-grounded-chat`)
+- [x] **Implemented** (`feat/NB-009-grounded-chat`)
   - No user steps.
   - Acceptance:
     - CI passes, including every case in R3, the R5 prompt test, the R7 tests (`buildHistory`, the `getHistory` collapsing rule), the `isEmptyAnswer` cases and the two new `log.test.ts` outcomes.
@@ -129,3 +129,13 @@ None.
 
 ## Notes
 Deviations found during implementation, one line each.
+- **Chat model (the user's decision on 2026-11-15):** `TEXT_MODEL` is now `gemini-3.5-flash-lite`, shared with summaries (15 requests/min, 500/day). Measured locally on the same question and passages: `gemini-3.8-flash` 102 s (past the 60 s `maxDuration`; thinking level `minimal` is rejected, `low` is the default), `gemini-3.5-flash` 5 s but with free-tier limits not shown in AI Studio, `gemini-3.5-flash-lite` under 1 s.
+- **AI SDK 7 names:** `streamText` takes `instructions` and `onEnd` (the spec's `onFinish`); the stream helper is the stateless `toUIMessageStream({ stream: result.stream, sendFinish: false, messageMetadata })`, not `result.toUIMessageStream`.
+- **Forwarding instead of `writer.merge`:** `execute` reads the model's UI stream and writes each chunk, so the finish or error part it adds afterwards always comes after the last text part.
+- **`streamText` lives in the backend** (`ai/chat.ts`, `streamChatAnswer`), because model IDs and Gemini calls don't belong in `frontend/`; the route still builds the UI stream and does saving and logging.
+- **Query placement:** the `match_chunks` call is `db/chunks.matchChunks`, the titles query `db/sources.titlesByIds`; `retrieve` composes them.
+- **Small additions:** `ai` added to `frontend/` (approved; the route and the transport import from it); `cutExcerpt` in `shared/citations.ts` (+ test); `QUESTION_COUNTER_FROM_CHARS` in limits; a body that isn't JSON is `VALIDATION` "Send the question as JSON."; `getHistory` checks ownership first (one more query per page load); a "Reading your sources…" line while waiting for the first text.
+- **Size:** about 1,190 changed lines of code and tests (including comments), over the ~800 estimate. The fallback (scroll-follow and counter to NB-010) would save only ~45 lines, so both stayed in; the bulk is tests and doc comments.
+- **Review round 1:** answers never render images (`disallowedElements={["img"]}`), so a prompt-injected source can't make the browser load an outside URL; a failed history load shows an inline line instead of the error page (the Shelf refreshes the page every 2 s); an answer still streaming after 50 s (`CHAT_ANSWER_TIMEOUT_MS`) ends with an error part and an error log line instead of being cut off silently at the 60 s `maxDuration`.
+- **Exact chunk search (the user's decision on 2026-11-15, from review round 1):** migration `0003_match_chunks_exact.sql` makes `match_chunks` select the notebook's chunks first and sort them exactly, because the global HNSW index filters by notebook only after its nearest-neighbour lookup and could return no passages for a small notebook. Same signature; it must be run once in the Supabase SQL editor.
+- **Review round 2:** the "couldn't load the earlier conversation" line keeps the first page load's result, since `useChat` reads its initial messages only once.

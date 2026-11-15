@@ -138,7 +138,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 
 - Notebooks are tied to one browser (no accounts).
 - Scanned PDFs without a text layer aren't supported.
-- Gemini free-tier rate limits apply; heavy use shows a "try again" message. Pasted text is capped at 80,000 characters to fit the embedding limit, the chat model allows only 20 requests a day, and source summaries (on a separate Flash-Lite quota of 500 a day) are skipped when that quota runs out.
+- Gemini free-tier rate limits apply; heavy use shows a "try again" message. Pasted text is capped at 80,000 characters to fit the embedding limit, chat answers and source summaries share a Flash-Lite quota of 500 requests a day (summaries are skipped when it runs out), and embeddings for sources and questions share 1,000 requests a day.
 - PDFs can have up to 100 pages and 80,000 characters of text; web pages up to 80,000 characters (the pasted-text cap, set by the embedding free tier). Longer documents fail with a message asking to split them or paste the part needed.
 - Web pages that need a login, sit behind a paywall or render their text with JavaScript can't be read; only `text/html` pages up to 5 MB on the default ports.
 - Processing runs in a serverless function without a queue; very large documents may time out.

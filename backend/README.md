@@ -37,14 +37,18 @@ backend/
       notebooks.ts        list (with source counts), get, count, insert, rename, delete
       sources.ts          insert, list, get, counts, claim (claim_source RPC), mark ready/failed, delete
       storage.ts          the private "sources" bucket: signed upload token, download, quiet remove
-      chunks.ts           insertMany only, in batches (the documented owner_id exception, see below)
+      chunks.ts           insertMany in batches, matchChunks (match_chunks RPC); the documented owner_id exception, see below
+      messages.ts         chat messages: insert, listRecent, listAll, countUserMessagesSince
     services/             notebooks, sources, chat, notes, health: one module per area
       notebooks.ts        list, get, create (limit), rename, delete
       sources.ts          list (stuck → failed), create text (limits), process (pipeline), delete (+ test)
       ownership.ts        assertNotebookOwner, assertSourceOwner (+ test)
+      chat.ts             startChat (validate, own, throttle, history, store question, retrieve), saveAnswer, getHistory
+      chat-history.ts     pure helpers: buildHistory, collapseResends, isEmptyAnswer (+ test)
     ai/
       models.ts           the only place with Gemini model IDs
-      prompts.ts          the only place with prompts
+      prompts.ts          the only place with prompts: source summary, chat system prompt (+ test)
+      chat.ts             streamChatAnswer: streamText with TEXT_MODEL for a prepared chat turn
       gemini.ts           provider with the server key, created lazily; AI_MAX_RETRIES
       errors.ts           toAiError(): Gemini 429 → RATE_LIMITED, else INTERNAL (+ test)
     rag/
@@ -55,7 +59,7 @@ backend/
       chunk.ts            + chunk.test.ts
       embed.ts            batched embeddings, 768 dims
       summarize.ts        a source's 3–4 sentence summary
-      retrieve.ts         match_chunks wrapper
+      retrieve.ts         embed the question, matchChunks, titles → numbered citations and passages
       url-guard.ts        SSRF protection: parsePublicUrl, isPublicAddress, guarded lookup (+ test)
     shared/               client-safe, no server-only imports
       index.ts            entry for "@repo/backend/shared"
@@ -63,7 +67,7 @@ backend/
       error-codes.ts      codes, HTTP statuses, user-facing messages, ErrorCode
       ids.ts              isUuid() (also used by the proxy)
       notebook-title.ts   NotebookTitle zod rule, shared with the rename dialog (+ test)
-      citations.ts        Citation type + marker parser + citations.test.ts
+      citations.ts        Citation type, parseCitations, usedCitationNumbers, stripCitationMarkers, cutExcerpt (+ test)
 ```
 
 ## Package entry points
@@ -102,7 +106,7 @@ export async function renameNotebook(ownerId: string, input: unknown) {
 - Inputs are `unknown` and parsed with zod. Never trust types from the caller. A `ZodError` maps to `VALIDATION`.
 - Ownership first: any function that takes a notebook or source ID calls `assertNotebookOwner` / `assertSourceOwner` before anything else. A foreign ID gets `NOT_FOUND`, never 403.
 - Every query has `.eq("owner_id", ownerId)` or goes through a function that does. No unscoped queries, ever.
-- **One documented exception:** `db/chunks.insertMany`. The `chunks` table has no `owner_id`; only `processSource` calls it, with rows built from a source it has just claimed for the owner, and it never reads or deletes. Chunks are deleted only inside the owner-scoped `claim_source` and by the cascade from `sources`.
+- **One documented exception:** `db/chunks`. The `chunks` table has no `owner_id`. `insertMany` is called only by `processSource`, with rows built from a source it has just claimed for the owner. `matchChunks` (the notebook-scoped `match_chunks` RPC) is called only by `retrieve`, after `assertNotebookOwner`. Chunks are deleted only inside the owner-scoped `claim_source` and by the cascade from `sources`.
 - Throw `AppError(code)` for expected failures. Let unexpected errors bubble up, and the frontend maps them to `INTERNAL`.
 
 **Data and concurrency**

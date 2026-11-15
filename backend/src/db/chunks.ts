@@ -21,7 +21,8 @@ export type ChunkRow = {
  *
  * The documented exception to "every query is scoped by owner_id" (NB-007 R8): `chunks` has no
  * owner_id column. Only processSource calls this, with rows built from a source it has just claimed
- * for the owner, and this module never reads or deletes chunks (claim_source and the cascade do that).
+ * for the owner. This module reads chunks only through matchChunks and never deletes them
+ * (claim_source and the cascade do that).
  */
 export async function insertMany(rows: ChunkRow[], signal?: AbortSignal): Promise<void> {
   for (let start = 0; start < rows.length; start += EMBED_BATCH_SIZE) {
@@ -42,4 +43,32 @@ export async function insertMany(rows: ChunkRow[], signal?: AbortSignal): Promis
     if (error?.code === FOREIGN_KEY_VIOLATION) throw new AppError("NOT_FOUND");
     if (error) throw new Error(`chunks.insertMany failed: ${error.code || "unknown"}`, { cause: error });
   }
+}
+
+export type MatchedChunk = { id: string; sourceId: string; page: number | null; content: string };
+
+/**
+ * The notebook's nearest chunks of ready sources (match_chunks RPC, cosine), best first; `sourceIds`
+ * null means all sources. match_chunks is scoped by notebook, not owner: call it only after
+ * assertNotebookOwner (docs/ARCHITECTURE.md §5).
+ */
+export async function matchChunks(
+  notebookId: string,
+  embedding: number[],
+  count: number,
+  sourceIds: string[] | null,
+): Promise<MatchedChunk[]> {
+  const { data, error } = await getSupabase().rpc("match_chunks", {
+    p_notebook_id: notebookId,
+    p_query_embedding: JSON.stringify(embedding),
+    p_match_count: count,
+    p_source_ids: sourceIds,
+  });
+  if (error) throw new Error(`chunks.matchChunks failed: ${error.code || "unknown"}`, { cause: error });
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: row.id as string,
+    sourceId: row.source_id as string,
+    page: (row.page as number | null) ?? null,
+    content: row.content as string,
+  }));
 }

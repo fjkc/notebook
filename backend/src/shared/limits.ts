@@ -101,3 +101,29 @@ export const FAILED_LOGIN_DELAY_MS = 1_000;
 
 /** Longest accepted password input, in characters. */
 export const MAX_PASSWORD_INPUT_CHARS = 200;
+
+// Chat (docs/ARCHITECTURE.md §7).
+
+/** Longest chat question, in characters. */
+export const MAX_QUESTION_CHARS = 2_000;
+
+/** From this many characters on, the chat input shows its counter. */
+export const QUESTION_COUNTER_FROM_CHARS = 1_800;
+
+/** Most chat questions one owner may send per minute (across notebooks). The next one is RATE_LIMITED. */
+export const MAX_CHAT_MESSAGES_PER_MINUTE = 10;
+
+/** Stored messages loaded as the model's conversation history (answered pairs only, see buildHistory). */
+export const CHAT_HISTORY_MESSAGES = 6;
+
+/** Passages retrieved per question (match_chunks p_match_count). */
+export const RETRIEVAL_MATCH_COUNT = 8;
+
+/** Longest citation excerpt shown to the user, in characters including the "…". */
+export const CITATION_EXCERPT_CHARS = 400;
+
+/**
+ * An answer still streaming after this long is stopped with an error, in ms. Below the chat route's 60 s
+ * maxDuration, so the client gets an error part and "Try again" instead of a stream that just stops.
+ */
+export const CHAT_ANSWER_TIMEOUT_MS = 50_000;

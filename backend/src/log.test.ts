@@ -30,6 +30,25 @@ describe("buildLogLine", () => {
     expect(buildLogLine({ route: "r", durationMs: 1, outcome: "error", errorCode: "leaked text" }))
       .not.toHaveProperty("errorCode");
   });
+
+  it("keeps the streaming outcomes: aborted at info, empty at error", () => {
+    expect(buildLogLine({ route: "chat", durationMs: 1, outcome: "aborted" })).toEqual({
+      level: "info",
+      route: "chat",
+      durationMs: 1,
+      outcome: "aborted",
+    });
+    expect(buildLogLine({ route: "chat", durationMs: 1, outcome: "empty" })).toEqual({
+      level: "error",
+      route: "chat",
+      durationMs: 1,
+      outcome: "empty",
+    });
+  });
+
+  it("treats an unknown outcome as ok", () => {
+    expect(buildLogLine({ route: "r", durationMs: 1, outcome: "weird" })).toMatchObject({ level: "info", outcome: "ok" });
+  });
 });
 
 describe("logOperation", () => {

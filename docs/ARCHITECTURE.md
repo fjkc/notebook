@@ -20,8 +20,8 @@ Reference for how the app is built and deployed. Keep it in sync with the code: 
         │ secret key                   │ API key   │
         ▼                              ▼           │
  ┌──── Supabase (EU, Frankfurt) ──┐  ┌── Gemini API (free tier) ──┐
- │ Postgres + pgvector            │  │ Flash: chat, summaries,     │
- │   notebooks, sources, chunks,  │  │   questions, notes, scripts │
+ │ Postgres + pgvector            │  │ Flash-Lite: chat answers,   │
+ │   notebooks, sources, chunks,  │  │   source summaries          │
  │   messages, notes              │  │ Embeddings (768 dims)       │
  │ Storage (private buckets)      │◄─┘ TTS (not planned)           │
  │   sources/ (PDF), audio/ (WAV) │◄────────────────────────────────┘
@@ -34,6 +34,17 @@ The browser uploads PDFs straight to Supabase Storage. Everything else goes thro
 - **Vercel (Hobby):** pushes to `main` deploy to production; other branches and PRs get preview URLs. Env vars are set per environment (Production, Preview).
 - **Supabase (free):** project in Frankfurt. Schema from `infra/supabase/migrations/`. Two private buckets: `sources` (PDF, max 10 MB) and `audio` (WAV).
 - **Gemini API (free tier):** called only from server code via the Vercel AI SDK. No billing enabled, so exceeding limits returns HTTP 429 instead of costing money.
+
+### Gemini models
+The IDs live only in `backend/src/ai/models.ts`; free-tier limits are in §6 "Limits".
+
+| Use | Model | Constant | Where it's called | Notes |
+|---|---|---|---|---|
+| Chat answers | `gemini-3.5-flash-lite` | `TEXT_MODEL` | `ai/chat.ts` (`streamChatAnswer`) | Streamed, temperature 0.2. Chosen in NB-009: under 1 s per answer; `gemini-3.8-flash` took 102 s, past the 60 s `maxDuration` |
+| Source summaries | `gemini-3.5-flash-lite` | `SUMMARY_MODEL` | `rag/summarize.ts` | 3–4 sentences from the first 30,000 characters; best-effort (skipped on failure) |
+| Embeddings (chunks and questions) | `gemini-embedding-001` | `EMBEDDING_MODEL` | `rag/embed.ts` | 768 dimensions (`EMBEDDING_DIMENSIONS`); `RETRIEVAL_DOCUMENT` for chunks, `RETRIEVAL_QUERY` for questions |
+
+Chat answers and summaries share one Flash-Lite quota; embeddings have their own.
 
 ### Runtime configuration
 - `frontend/vercel.json` pins functions to `fra1` (next to the Supabase region) and schedules the daily keep-alive cron.
@@ -48,6 +59,8 @@ Supabase pauses free projects after a period of inactivity, and reviewers may op
 
 ### Observability
 Each Route Handler logs one structured line per request: route, first 8 chars of `owner_id`, duration in ms, outcome or error code. Never log secrets or document contents. Production debugging uses Vercel's runtime logs.
+
+The streaming chat route uses `withRoute(…, { streaming: true })`: errors thrown before the stream starts are logged by `withRoute`, and the route logs its one line itself when the stream ends, from `streamText`'s `onEnd` (`ok`, or `empty` for an answer without text), `onAbort` (`aborted`, at level info) or `onError` (the error code). An error with a cause may add one detail line, as everywhere.
 
 ## 2. Key decisions
 
@@ -109,7 +122,7 @@ Full definition in `infra/supabase/migrations/0001_init.sql`. Summary:
 | `messages` | `notebook_id`, `owner_id`, `role`, `content`, `citations jsonb` |
 | `notes` | `notebook_id`, `owner_id`, `kind` (briefing/faq/study_guide/audio), `title`, `content`, `audio_path` |
 
-Function `match_chunks(p_notebook_id, p_query_embedding, p_match_count, p_source_ids)` returns the nearest chunks (cosine) of ready sources, optionally limited to selected sources.
+Function `match_chunks(p_notebook_id, p_query_embedding, p_match_count, p_source_ids)` returns the nearest chunks (cosine) of ready sources, optionally limited to selected sources. Since `0003_match_chunks_exact.sql` the search is exact per notebook: it selects the notebook's chunks first and then sorts them, because the global HNSW index would take the nearest chunks across all notebooks before filtering and could return nothing for a small notebook. A notebook holds at most ~800 chunks, so the exact scan is cheap.
 
 **Source status lifecycle:** `pending` → `processing` → `ready` | `failed`. A `failed` source can be retried. A source stuck in `pending` or `processing` for more than 5 minutes (by `updated_at`) is shown as `failed` with error "Processing timed out." (computed on read, never written) and can be retried.
 
@@ -129,7 +142,7 @@ Function `match_chunks(p_notebook_id, p_query_embedding, p_match_count, p_source
    - **Text cap:** URL and PDF text has the pasted-text cap (`MAX_PASTED_TEXT_CHARS`), because the same embedding quota and time budget apply. Over it → `LIMIT_REACHED` ("This page has more than 80,000 characters of text. Paste the part you need instead." / "This PDF has more than 80,000 characters of text. Split it, or paste the part you need."), checked right after extraction, before any embedding.
 4. **Chunk** (`rag/chunk.ts`): each page separately (chunks never cross pages, so page numbers stay exact). Split into paragraphs, then sentences if needed; merge up to ~1,000 chars with ~150 chars overlap; merge a trailing piece under 200 chars into the previous chunk of the same page.
 5. **Embed** (`rag/embed.ts`): `embedMany` in sequential batches of up to 100, `taskType: "RETRIEVAL_DOCUMENT"`, `outputDimensionality: 768`. Insert chunks in batches.
-6. **Summarise:** one Flash-Lite call (`SUMMARY_MODEL`, ~1–2 s, its own quota) → 3–4 sentence summary → `sources.summary`. Best-effort: if it fails (quota, timeout), the failure is logged and the source still becomes `ready` with `summary = null`, since its chunks are stored and usable in answers.
+6. **Summarise:** one Flash-Lite call (`SUMMARY_MODEL`, ~1–2 s, a quota shared with chat answers) → 3–4 sentence summary → `sources.summary`. Best-effort: if it fails (quota, timeout), the failure is logged and the source still becomes `ready` with `summary = null`, since its chunks are stored and usable in answers.
 7. **Ready:** set `status = 'ready'`, `page_count`, `char_count`.
 8. **Suggested questions** (NB-010, after `ready`): regenerate `notebooks.suggested_questions` from all ready source summaries (structured output, 3–5 questions). Failure here is logged but doesn't fail the source.
 
@@ -149,7 +162,12 @@ The client doesn't wait for the process call: after a create (whose action reval
 - Chunks: 1,000 characters of new text (`CHUNK_TARGET_CHARS`), 150 characters overlap (`CHUNK_OVERLAP_CHARS`), tails under 200 merged (`CHUNK_MIN_CHARS`), so at most 1,352 characters (`MAX_CHUNK_CHARS`)
 - Embedding calls and chunk inserts in batches of 100 (`EMBED_BATCH_SIZE`); the summary reads the first 30,000 characters (`SUMMARY_INPUT_CHARS`)
 - Shelf polling every 2 s (`SOURCE_POLL_MS`); stuck after 5 minutes (`STUCK_SOURCE_MS`)
-- Gemini free tier, read from the AI Studio rate-limit page on 2026-11-15: `gemini-3.8-flash` 5 requests/min, 250,000 tokens/min, 20 requests/day; `gemini-embedding-001` 100 requests/min, 30,000 tokens/min, 1,000 requests/day; `gemini-3.5-flash-lite` (summaries) 15 requests/min, 250,000 tokens/min, 500 requests/day. A source costs one embedding call per 100 chunks plus one Flash-Lite summary call (at most ~8,000 input tokens), so summaries are limited by the 500 requests a day, not by tokens.
+- Gemini free tier, read from the AI Studio rate-limit page on 2026-11-15: `gemini-embedding-001` 100 requests/min, 30,000 tokens/min, 1,000 requests/day; `gemini-3.5-flash-lite` (chat answers since NB-009, and summaries) 15 requests/min, 250,000 tokens/min, 500 requests/day. A source costs one embedding call per 100 chunks plus one Flash-Lite summary call (at most ~8,000 input tokens); a question costs one embedding call plus one Flash-Lite call. Chat and summaries share the 500 Flash-Lite requests a day.
+
+Chat (§7):
+- Questions up to 2,000 characters (`MAX_QUESTION_CHARS`); the input shows a counter from 1,800 (`QUESTION_COUNTER_FROM_CHARS`)
+- At most 10 questions per owner per minute (`MAX_CHAT_MESSAGES_PER_MINUTE`), counted from stored user messages; every request counts, resends included
+- The last 6 stored messages (`CHAT_HISTORY_MESSAGES`) are loaded as history; 8 passages per question (`RETRIEVAL_MATCH_COUNT`); citation excerpts up to 400 characters (`CITATION_EXCERPT_CHARS`)
 
 ### SSRF protection (`rag/url-guard.ts`, `rag/fetch-page.ts`)
 - **`parsePublicUrl`** (on create, without DNS, and again before the fetch), in order: max 2,048 chars (the input and the normalised href); parseable, `http:`/`https:` only; no user name or password; no port other than 80/443; not `localhost`/`*.localhost` and not a literal IP that isn't public (also the forms `new URL` normalises, such as `127.1`, `0x7f000001`, `2130706433`). Each failure is `VALIDATION` with its own message (§11).
@@ -161,11 +179,11 @@ The client doesn't wait for the process call: after a create (whose action reval
 ## 7. Chat and citations
 
 ### Flow (`POST /api/chat`)
-1. Validate `{ notebookId, messages, sourceIds? }`, `assertNotebookOwner`, throttle check (max 10 user messages per owner per minute, counted in `messages`).
-2. Persist the new user message.
-3. Embed the latest user message (`taskType: "RETRIEVAL_QUERY"`), call `match_chunks` with `p_match_count = 8` and `p_source_ids` (null = all ready sources).
-4. Build the system prompt with passages numbered `[1]…[n]` (see Prompts). Include the last 6 messages as conversation history, text only.
-5. `streamText` with the Flash model. Attach the citation map as **message metadata**:
+1. Validate `{ notebookId, text, sourceIds? }` (strict: any other key, such as `messages`, is `VALIDATION`), `assertNotebookOwner`, check that every `sourceIds` entry is a ready source of the notebook (else `NOT_FOUND`), throttle check (max 10 user messages per owner per minute, counted in `messages`).
+2. Build the history **from the database, not the client**: the last 6 stored messages, keeping only answered pairs (a user message directly followed by an assistant message), so turns alternate and questions that never got an answer (after an error or "Stop") are dropped. Old citation markers are stripped from the answers, because each turn numbers its passages from 1. The client can't inject assistant turns or forged citations.
+3. Persist the new user message.
+4. Embed the question (`taskType: "RETRIEVAL_QUERY"`), call `match_chunks` with `p_match_count = 8` and `p_source_ids` (null = all ready sources), load the source titles in one owner-scoped query.
+5. Build the system prompt with passages numbered `[1]…[n]` inside `<passages>…</passages>` (see Prompts), and `streamText` with `TEXT_MODEL`, the history as text-only messages plus the question, temperature 0.2, `maxRetries: 2` and the request's abort signal. The citation map goes out as **message metadata** on the stream's `start` part:
    ```ts
    type Citation = {
      n: number;            // the number used in the answer
@@ -176,11 +194,13 @@ The client doesn't wait for the process call: after a create (whose action reval
      excerpt: string;      // chunk content, max 400 chars
    };
    ```
-6. On finish: persist the assistant message with `citations` filtered to the numbers actually used in the answer.
+6. The route forwards the model's UI message stream without its finish part, then writes the finish part itself, or an error part when the answer is empty after trimming (e.g. a safety block). Stream errors are mapped to the code's user message (a Gemini 429 → `RATE_LIMITED`), never a raw error.
+7. An answer still streaming after 50 s (`CHAT_ANSWER_TIMEOUT_MS`) is aborted and the client gets an error part, before Vercel's 60 s `maxDuration` would cut the stream silently.
+8. On a normal finish (`onEnd`): persist the assistant message with `citations` filtered to the numbers actually used in the answer. On abort ("Stop"), error or an empty answer nothing is saved; the user message stays, and the page shows a resent question once (a user message directly followed by one with the same text is left out of the history it renders).
 
 ### Rendering
 - `backend/src/shared/citations.ts` (client-safe) finds markers `[1]`, `[1, 3]`, `[1][3]`, ignores numbers that aren't in the citation map, and returns segments of text and citation refs.
-- Answers render as Markdown (`react-markdown` + `remark-gfm`) with markers replaced by citation chips. Pressing a citation hook opens the Reader (source title, page and the excerpt with the marker highlight; a side pane on desktop, a sheet on smaller screens) and highlights the source's chip on the Shelf, instead of a popover (`docs/DESIGN.md` → "Layout"). It uses only the data in `Citation`.
+- Answers render as Markdown (`react-markdown` + `remark-gfm`, `skipHtml`, links in a new tab). A small remark plugin (`components/notebook/remark-citations.ts`) runs the parser on each Markdown **text node** only, so code is never touched and Markdown structure stays intact, and replaces markers with a custom node that becomes a `<cite data-numbers="1,3">` element (via `data.hName`). The saved answer's citations are filtered on the raw Markdown with `usedCitationNumbers`, which ignores code. Until NB-010 the markers show as superscript numbers; from NB-010, pressing a citation hook opens the Reader (source title, page and the excerpt with the marker highlight; a side pane on desktop, a sheet on smaller screens) and highlights the source's chip on the Shelf, instead of a popover (`docs/DESIGN.md` → "Layout"). It uses only the data in `Citation`.
 - When no sources are ready, the chat input is disabled and the empty state explains how to add a source.
 - Suggested questions appear as clickable chips when the chat is empty.
 - Users can include/exclude sources for chat (client state, sent as `sourceIds`).
@@ -223,7 +243,7 @@ Cut with M7 (`docs/PROGRESS.md` → "Decisions log", Scope). Kept as a sketch; d
 | `GET /api/health` | – | `{ ok, db, timestamp }`: `200` when the database answers, `503` otherwise (no error body) |
 | `POST /api/sources/upload-url` | `{ notebookId, fileName, fileSize }` | `{ sourceId, path, token }`, or the error shape (`400 VALIDATION` "Choose a PDF file.", `FILE_TOO_LARGE`, `LIMIT_REACHED`, `404`) |
 | `POST /api/sources/[id]/process` | – | `200 { status: "ready" }`, or the error shape (`404`, `409 ALREADY_PROCESSING`, `429`, …) |
-| `POST /api/chat` | `{ notebookId, messages, sourceIds? }` | UI message stream |
+| `POST /api/chat` | `{ notebookId, text, sourceIds? }` (only the new question; history comes from the database) | UI message stream, or the error shape before streaming (`400`, `404`, `429`, …) |
 | `POST /api/notes` | `{ notebookId, kind }` | `{ note }` |
 | `POST /api/notes/audio` | `{ notebookId }` | `{ note }` |
 

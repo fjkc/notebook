@@ -6,20 +6,25 @@ export type LogFields = {
   /** First 8 characters of the owner_id; longer values are cut. */
   ownerPrefix?: string;
   durationMs: number;
-  outcome: "ok" | "error";
+  /** "aborted": the client stopped a stream; "empty": a stream finished without text (chat). */
+  outcome: Outcome;
   errorCode?: ErrorCode;
 };
 
+type Outcome = "ok" | "error" | "aborted" | "empty";
+
 const OWNER_PREFIX_LENGTH = 8;
+const OUTCOMES: readonly Outcome[] = ["ok", "error", "aborted", "empty"];
+const ERROR_OUTCOMES: readonly Outcome[] = ["error", "empty"];
 
 /**
  * Builds the log record from an allow-list. Accepts `unknown` input on purpose: anything not listed
  * in LogFields is dropped, even if a caller passes it in a loosely typed object.
  */
 export function buildLogLine(fields: Record<string, unknown>): LogFields & { level: "info" | "error" } {
-  const outcome = fields.outcome === "error" ? "error" : "ok";
+  const outcome = OUTCOMES.find((value) => value === fields.outcome) ?? "ok";
   const line: LogFields & { level: "info" | "error" } = {
-    level: outcome === "error" ? "error" : "info",
+    level: ERROR_OUTCOMES.includes(outcome) ? "error" : "info",
     route: typeof fields.route === "string" ? fields.route : "unknown",
     durationMs: typeof fields.durationMs === "number" ? Math.round(fields.durationMs) : 0,
     outcome,
