@@ -146,7 +146,7 @@ The client doesn't wait for the process call: after a create (whose action reval
 - Chunks: 1,000 characters of new text (`CHUNK_TARGET_CHARS`), 150 characters overlap (`CHUNK_OVERLAP_CHARS`), tails under 200 merged (`CHUNK_MIN_CHARS`), so at most 1,352 characters (`MAX_CHUNK_CHARS`)
 - Embedding calls and chunk inserts in batches of 100 (`EMBED_BATCH_SIZE`); the summary reads the first 30,000 characters (`SUMMARY_INPUT_CHARS`)
 - Shelf polling every 2 s (`SOURCE_POLL_MS`); stuck after 5 minutes (`STUCK_SOURCE_MS`)
-- Gemini free tier, read from the AI Studio rate-limit page on 2026-11-15: `gemini-3.8-flash` 5 requests/min, 250,000 tokens/min, 20 requests/day; `gemini-embedding-001` 100 requests/min, 30,000 tokens/min, 1,000 requests/day. A source costs one embedding call per 100 chunks plus one summary call.
+- Gemini free tier, read from the AI Studio rate-limit page on 2026-11-15: `gemini-3.8-flash` 5 requests/min, 250,000 tokens/min, 20 requests/day; `gemini-embedding-001` 100 requests/min, 30,000 tokens/min, 1,000 requests/day; `gemini-3.5-flash-lite` (summaries) 15 requests/min, 250,000 tokens/min, 500 requests/day. A source costs one embedding call per 100 chunks plus one Flash-Lite summary call (at most ~8,000 input tokens), so summaries are limited by the 500 requests a day, not by tokens.
 
 ### SSRF protection (`rag/url-guard.ts`)
 Only `http:`/`https:`, default ports only. Resolve the hostname and reject loopback, private, link-local and metadata ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, ::1, fc00::/7, fe80::/10) and `localhost`. Follow at most 3 redirects, re-checking each hop.
