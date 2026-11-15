@@ -1,0 +1,63 @@
+The Tide Mill of Varrow Creek
+
+Varrow Creek is a small tidal inlet on a stretch of coast where the land is low, the mud is deep and the sea comes in twice a day with remarkable force. For almost three centuries the creek powered a tide mill, a building that ground grain using the energy of the tide rather than a river or the wind. This document describes how the mill worked, why it fell silent, and how a group of volunteers brought it back to life between 2009 and 2016. Everything in it was written for this project; the place and the people are fictional, but the engineering follows the way real tide mills have worked for centuries.
+
+How a tide mill works
+
+A tide mill depends on a simple idea. When the tide rises, sea water flows up the creek and into a storage pond through a set of gates. The gates are hinged so that they open when the water outside is higher than the water inside, and close by themselves when the tide turns. At high tide the pond is full and the gates are shut. As the tide falls outside, a difference in level builds up between the pond and the creek. The miller waits until that difference is large enough, usually about two hours after high water, and then opens a sluice that lets the stored water run out through the wheel. The wheel turns, the gears turn, and the millstones grind.
+
+At Varrow Creek the storage pond covered just over four hectares. The miller could usually grind for about four hours on each falling tide, which meant two working sessions a day, roughly fifty minutes later each day than the day before. A mill like this keeps the miller's hours tied to the moon rather than the clock. Old account books show that the millers of Varrow often worked through the night, because the tide did not care whether it was convenient.
+
+The building and its wheel
+
+The mill that stands today was built in 1781 on the foundations of an earlier timber mill. It has three floors. The ground floor holds the wheel pit and the main gears; the first floor, called the stone floor, holds two pairs of millstones; the top floor was used for storing grain and for the hoist that lifted sacks up from the boats moored outside. The walls are of local grey stone, and the roof is covered with clay tiles that were replaced during the restoration.
+
+The original wheel was an undershot wheel made of oak, a little over five metres across, with forty-eight wooden paddles. An undershot wheel is pushed by water flowing beneath it, which suits the low head of water available in a tide mill. In 1842 the oak wheel was replaced by a cast-iron wheel of the same size made at a foundry in the nearby market town of Elsworth. That iron wheel survived, rusted but intact, until the restoration began, and it now turns again.
+
+The two pairs of millstones had different jobs. The pair nearer the creek was made of French burr stone, a hard, porous stone prized for grinding fine wheat flour. The other pair was a coarser local stone used for animal feed. The miller could run one pair or both, depending on how much water was in the pond and what the customers needed.
+
+Decline and closure
+
+For most of the nineteenth century the mill was busy. Farmers from the surrounding parishes brought grain by cart and by boat, and the miller kept a share of every load as payment, a custom known as the toll. The last miller to work the mill commercially was Edith Marrin, who took over from her father in 1919 and ran it alone for nearly twenty years. Records describe her as precise and stubborn. She kept a daily log of tide heights, wheel speed and the weight of flour produced, and those logs later became one of the most valuable sources for the restoration team.
+
+Competition from large steam-powered roller mills in the cities made small mills less and less profitable. In 1938, after a winter storm damaged the pond gates, Edith Marrin decided the repairs were too expensive and closed the mill. The building was used as a store for fishing gear during the following decades. The pond silted up, the gates rotted, and by the 1990s salt marsh plants covered most of the old pond.
+
+The restoration trust
+
+In 2009 a group of residents formed the Varrow Creek Mill Trust with the aim of restoring the mill to working order. The trust's first chair was a retired harbour engineer named Tomas Quayle, who had grown up within sight of the building. In its first year the trust had thirty-one members; by the time the mill reopened it had more than four hundred.
+
+The restoration was paid for by a mix of sources. A heritage grant covered about sixty percent of the total cost of 1.2 million, local fundraising raised roughly a quarter, and the rest came from a loan that the trust repaid from visitor income by 2021. Volunteers contributed more than twenty thousand hours of work, from clearing mud to sewing new sack covers.
+
+The work happened in three phases. In the first phase, from 2010 to 2012, the trust stabilised the building, replaced the roof and installed new floors where the old timbers had rotted. In the second phase, from 2012 to 2014, contractors dredged part of the pond and rebuilt the tide gates. The trust decided to restore only one and a half hectares of the original pond, because the rest had become valuable salt marsh habitat for wading birds, and a survey had found a breeding colony of redshank there. In the third phase, from 2014 to 2016, specialists repaired the iron wheel, made new wooden gear teeth and dressed the millstones.
+
+Learning from Edith Marrin's logs
+
+The smaller pond created a problem. With less stored water, the mill could not run for four hours on each tide as it once had. The team used Edith Marrin's logs to work out exactly how much water each hour of grinding had needed. Her notes showed that a full pond gave about four hours of grinding with both pairs of stones, and that running a single pair roughly doubled the time each unit of water lasted. From this the engineers calculated that the restored pond could run one pair of stones for about ninety minutes per tide, which was enough for demonstrations and for a small flour business.
+
+The logs also revealed something unexpected. On days with a strong onshore wind, Edith Marrin recorded higher tides and longer grinding sessions, sometimes by as much as twenty minutes. Wind piling water against the coast raises the tide above its predicted level, an effect known as a storm surge when it is extreme. The restoration team now checks the wind forecast as well as the tide tables before planning a grinding day.
+
+Reopening and the mill today
+
+The mill reopened to the public on 14 May 2016. On the first grinding day the restored wheel turned at about six revolutions per minute and the French burr stones produced forty kilograms of wholemeal flour in a single session. The flour sold out within an hour.
+
+Today the mill grinds on roughly two days a month, chosen to match tides that fall during opening hours. It is run by volunteers, and the trust employs one part-time miller, who trains new volunteers in dressing stones, controlling the sluice and reading the tide tables. The mill sells its flour to two local bakeries and in its own small shop. Visitor numbers have grown to about eighteen thousand a year, and school groups make up nearly a third of them.
+
+The trust also monitors the salt marsh it chose to leave alone. The redshank colony has grown since the restoration, and in 2019 avocets nested on the marsh for the first time in living memory. The trust counts this as evidence that heritage work and nature conservation do not have to compete, as long as decisions are based on careful surveys.
+
+A grinding day, step by step
+
+A grinding day starts the evening before, when the duty miller checks the tide table and the wind forecast and decides the time to open the sluice. On the day itself, volunteers arrive about an hour before high water. They inspect the tide gates from the footbridge, clear any seaweed caught in the hinges and make sure the pond's overflow channel is free, because a blocked overflow can push water over the bank on a very high tide.
+
+While the pond fills, the team prepares the stone floor. Grain is weighed into the hopper above the French burr stones, usually in batches of twenty-five kilograms. The gap between the stones, which decides how fine the flour will be, is set with a hand wheel called the tentering screw. Edith Marrin's logs recorded the setting she used for each kind of flour, and the volunteers still use her figures as a starting point.
+
+About two hours after high water, when the level in the creek has dropped by roughly a metre below the pond, the miller opens the sluice. The wheel starts slowly and reaches full speed within a minute or two. From then on the miller listens as much as watches: a change in the sound of the stones means the feed of grain needs adjusting. When the difference in water level becomes too small to keep the wheel at speed, the sluice is closed and the day's grinding ends. The flour is cooled, sieved and packed in paper bags that carry the date and the tide time of the session, a detail visitors often photograph.
+
+Energy and the future
+
+Visitors often ask whether a tide mill could produce electricity. In principle it could: the same falling water that turns the millstones could turn a small generator. The trust studied the idea in 2022 and found that the restored pond could produce, on average, only enough electricity for a handful of homes, because the head of water is small and the pond is no longer full size. The study concluded that the mill's main value lies in education rather than energy, and the trust decided not to install a generator. Instead, it built an exhibition that explains tidal energy, compares the mill with modern tidal barrages, and shows how the moon's orbit sets the rhythm of the tides.
+
+Questions the trust still argues about
+
+Not every question has been settled. Some members want to restore more of the pond so that the mill can grind for longer and sell more flour. Others argue that the salt marsh is now more important than the mill's output and should be left as it is. A second debate concerns the iron wheel. It is more than one hundred and eighty years old, and an engineering report in 2023 warned that it will need major repairs within fifteen years. Some members would like to build a replica oak wheel like the one used before 1842, while others want to keep repairing the iron wheel because it is the original that Edith Marrin used.
+
+The trust has agreed to make both decisions only after another full survey of the marsh and the wheel, planned for 2027. Until then, the mill keeps turning on the falling tide, two days a month, much as it did when the first miller opened the sluice at Varrow Creek nearly three hundred years ago.

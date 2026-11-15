@@ -18,7 +18,9 @@
     "vitest": "^5.1.0"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.121",
     "@supabase/supabase-js": "^2.119.0",
+    "ai": "^7.0.173",
     "server-only": "^0.0.1",
     "zod": "^4.6.7"
   }

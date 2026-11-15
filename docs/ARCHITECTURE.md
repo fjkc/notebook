@@ -40,6 +40,7 @@ The browser uploads PDFs straight to Supabase Storage. Everything else goes thro
 - All Route Handlers: `export const runtime = "nodejs"` (parsing libraries need Node).
 - Long-running handlers (`/api/sources/[id]/process`, `/api/chat`, `/api/notes*`) set `export const maxDuration = 60`. Verify the current Vercel Hobby maximum; never rely on long timeouts, batch the work instead.
 - Every server Supabase request (queries and Storage) is aborted after `SUPABASE_REQUEST_TIMEOUT_MS` (10 s, `limits.ts`) unless the caller passes its own signal. Long operations, such as PDF downloads and chunk inserts in ingestion, pass a longer one; inserts go in batches.
+- A process call has a 45 s budget after the claim (`PROCESS_BUDGET_MS`), one signal shared by the AI calls and the chunk inserts. Each chunk-insert batch also gets its own 30 s cap (`INGEST_DB_TIMEOUT_MS`). The final `markReady` or `markFailed` runs outside the budget with its own 5 s cap (`FINALIZE_DB_TIMEOUT_MS`), so a source that finished is never marked failed by a late abort, and the outcome is written before the 60 s `maxDuration`.
 - RLS is enabled on every table **with no policies**. Server code uses the secret key, which bypasses RLS; the public key in the browser can't read or write any table. The browser client exists only for `uploadToSignedUrl`.
 
 ### Keep-alive and health
@@ -110,7 +111,7 @@ Full definition in `infra/supabase/migrations/0001_init.sql`. Summary:
 
 Function `match_chunks(p_notebook_id, p_query_embedding, p_match_count, p_source_ids)` returns the nearest chunks (cosine) of ready sources, optionally limited to selected sources.
 
-**Source status lifecycle:** `pending` → `processing` → `ready` | `failed`. A `failed` source can be retried. A source stuck in `processing` for more than 5 minutes (by `updated_at`) is treated as `failed` with error "Processing timed out" and can be retried.
+**Source status lifecycle:** `pending` → `processing` → `ready` | `failed`. A `failed` source can be retried. A source stuck in `pending` or `processing` for more than 5 minutes (by `updated_at`) is shown as `failed` with error "Processing timed out." (computed on read, never written) and can be retried.
 
 ## 6. Source ingestion
 
@@ -119,30 +120,33 @@ Function `match_chunks(p_notebook_id, p_query_embedding, p_match_count, p_source
    - Text: Server Action inserts a `pending` source with `input_text` and a title (user-supplied or first line, max 80 chars).
    - URL: Server Action validates the URL (http/https only) and inserts a `pending` source with `url`.
    - PDF: client calls `POST /api/sources/upload-url`; the server checks size and limits, inserts a `pending` source with `storage_path = {owner_id}/{source_id}.pdf` and returns a signed upload token; the client uploads with `uploadToSignedUrl`.
-2. **Process:** the client calls `POST /api/sources/[id]/process`. The handler atomically claims the source:
-   `update sources set status='processing' where id=$1 and owner_id=$2 and status in ('pending','failed') returning *`
-   No row → 409 `ALREADY_PROCESSING`. On retry, delete existing chunks of the source first.
+2. **Process:** the client calls `POST /api/sources/[id]/process`. The handler atomically claims the source with `claim_source(p_id, p_owner_id)` (migration `0002_claim_source.sql`): in one statement it sets `status = 'processing', error = null` where the source is the owner's and `pending`, `failed` or stuck in `processing` for more than 5 minutes, and deletes that source's existing chunks, so a retry never leaves duplicates.
+   No row claimed → 409 `ALREADY_PROCESSING` if the source still exists, else 404 `NOT_FOUND`.
 3. **Extract** (`rag/extract.ts`) → array of `{ page: number | null, text: string }`
    - PDF: download from storage, `unpdf` with per-page text. If total text < 100 chars → `NO_TEXT_FOUND` ("This PDF has no selectable text. Scanned PDFs aren't supported yet.").
    - URL: `url-guard` check, fetch with 10 s timeout, max 5 MB, `text/html` only, `@mozilla/readability` on a `linkedom` document. Title from readability. Failure → `URL_FETCH_FAILED`.
    - Text: single page with `page = null`.
 4. **Chunk** (`rag/chunk.ts`): each page separately (chunks never cross pages, so page numbers stay exact). Split into paragraphs, then sentences if needed; merge up to ~1,000 chars with ~150 chars overlap; merge a trailing piece under 200 chars into the previous chunk of the same page.
 5. **Embed** (`rag/embed.ts`): `embedMany` in sequential batches of up to 100, `taskType: "RETRIEVAL_DOCUMENT"`, `outputDimensionality: 768`. Insert chunks in batches.
-6. **Summarise:** one Flash call → 3–4 sentence summary → `sources.summary`.
+6. **Summarise:** one Flash-Lite call (`SUMMARY_MODEL`, ~1–2 s, its own quota) → 3–4 sentence summary → `sources.summary`. Best-effort: if it fails (quota, timeout), the failure is logged and the source still becomes `ready` with `summary = null`, since its chunks are stored and usable in answers.
 7. **Ready:** set `status = 'ready'`, `page_count`, `char_count`.
-8. **Suggested questions:** regenerate `notebooks.suggested_questions` from all ready source summaries (structured output, 3–5 questions). Failure here is logged but doesn't fail the source.
+8. **Suggested questions** (NB-010, after `ready`): regenerate `notebooks.suggested_questions` from all ready source summaries (structured output, 3–5 questions). Failure here is logged but doesn't fail the source.
 
-Any error in steps 3–7 → `status = 'failed'`, `error` = user-facing message for the error code.
+Any error in steps 3–5 or 7 → `status = 'failed'`, `error` = user-facing message for the error code, and the route answers with the error shape. A source deleted mid-run (chunk insert hits a foreign-key violation, or the final update matches no row) ends as `NOT_FOUND`, which the client ignores.
 
 ### Client behaviour
-The client awaits the process call with a loading state. While any source in the notebook is `pending` or `processing`, the sources list refreshes every 2 s (e.g. `router.refresh()`), so a page reload mid-processing still resolves.
+The client doesn't wait for the process call: after a create (whose action revalidates the page, so the `pending` chip appears) or a "Try again", it fires the call and the chip shows "Processing". While any source in the notebook is `pending` or `processing`, the page refreshes every 2 s with `router.refresh()` (`SOURCE_POLL_MS`, paused while the tab is hidden), so a reload mid-processing still resolves. When the call settles, the client refreshes once more; a `NOT_FOUND` answer is ignored, any other error shows a toast.
 
 ### Limits (`backend/src/shared/limits.ts`)
 - PDF max 10 MB and 300 pages
 - Max 50 notebooks per owner (`MAX_NOTEBOOKS_PER_OWNER`)
 - Max 10 sources per notebook
 - Max 20 new sources per owner per hour
-- Max pasted text 200,000 chars
+- Max pasted text 80,000 chars (`MAX_PASTED_TEXT_CHARS`): lowered from 200,000 because the embedding free tier allows 30,000 tokens per minute, and English text with chunk overlap is about 1 token per 3.5 characters. Text in Chinese or Japanese uses about one token per character, so long pastes in those scripts may still hit `RATE_LIMITED`.
+- Chunks: 1,000 characters of new text (`CHUNK_TARGET_CHARS`), 150 characters overlap (`CHUNK_OVERLAP_CHARS`), tails under 200 merged (`CHUNK_MIN_CHARS`), so at most 1,352 characters (`MAX_CHUNK_CHARS`)
+- Embedding calls and chunk inserts in batches of 100 (`EMBED_BATCH_SIZE`); the summary reads the first 30,000 characters (`SUMMARY_INPUT_CHARS`)
+- Shelf polling every 2 s (`SOURCE_POLL_MS`); stuck after 5 minutes (`STUCK_SOURCE_MS`)
+- Gemini free tier, read from the AI Studio rate-limit page on 2026-11-15: `gemini-3.8-flash` 5 requests/min, 250,000 tokens/min, 20 requests/day; `gemini-embedding-001` 100 requests/min, 30,000 tokens/min, 1,000 requests/day; `gemini-3.5-flash-lite` (summaries) 15 requests/min, 250,000 tokens/min, 500 requests/day. A source costs one embedding call per 100 chunks plus one Flash-Lite summary call (at most ~8,000 input tokens), so summaries are limited by the 500 requests a day, not by tokens.
 
 ### SSRF protection (`rag/url-guard.ts`)
 Only `http:`/`https:`, default ports only. Resolve the hostname and reject loopback, private, link-local and metadata ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, ::1, fc00::/7, fe80::/10) and `localhost`. Follow at most 3 redirects, re-checking each hop.
@@ -199,7 +203,7 @@ Cut with M7 (`docs/PROGRESS.md` → "Decisions log", Scope). Kept as a sketch; d
 | `createNotebook` | none | starts as "Untitled notebook" (max 50 per owner), redirects to the new notebook |
 | `renameNotebook` | `{ id, title }` | |
 | `deleteNotebook` | `{ id }` | the client navigates home; storage files of its sources are removed from M4 on, with PDF uploads |
-| `createTextSource` | `{ notebookId, title?, text }` | returns `{ sourceId }` |
+| `createTextSource` | `{ notebookId, title?, text }` | returns `{ sourceId }`; limits checked after the ownership check. There's no `retrySource`: "Try again" is the process call |
 | `createUrlSource` | `{ notebookId, url }` | returns `{ sourceId }` |
 | `deleteSource` | `{ id }` | removes chunks (cascade) and storage file |
 | `clearChat` | `{ notebookId }` | deletes messages |
@@ -211,7 +215,7 @@ Cut with M7 (`docs/PROGRESS.md` → "Decisions log", Scope). Kept as a sketch; d
 |---|---|---|
 | `GET /api/health` | – | `{ ok, db, timestamp }`: `200` when the database answers, `503` otherwise (no error body) |
 | `POST /api/sources/upload-url` | `{ notebookId, fileName, fileSize }` | `{ sourceId, path, token }` |
-| `POST /api/sources/[id]/process` | – | `{ status, error? }` |
+| `POST /api/sources/[id]/process` | – | `200 { status: "ready" }`, or the error shape (`404`, `409 ALREADY_PROCESSING`, `429`, …) |
 | `POST /api/chat` | `{ notebookId, messages, sourceIds? }` | UI message stream |
 | `POST /api/notes` | `{ notebookId, kind }` | `{ note }` |
 | `POST /api/notes/audio` | `{ notebookId }` | `{ note }` |

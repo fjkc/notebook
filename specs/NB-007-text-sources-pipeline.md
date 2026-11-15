@@ -112,7 +112,7 @@ Users can paste text into a notebook and watch it go from "processing" to "ready
 
 ## Implementation
 
-- [ ] **Implemented** (`feat/NB-007-text-sources`)
+- [x] **Implemented** (`feat/NB-007-text-sources`)
   - **User steps before merge** (`/implement` asks for both in one message):
     - Run `infra/supabase/migrations/0002_claim_source.sql` in the Supabase SQL editor (copied with `pbcopy`). The preview needs it too, since preview and production share the database.
     - Read the free-tier limits for the two models from the AI Studio rate-limit page (R16) and tell Claude the numbers.
@@ -141,3 +141,14 @@ None.
 
 ## Notes
 Deviations found during implementation, one line each.
+- R16: free tier on 2026-11-15 is `gemini-3.8-flash` 5 RPM / 250k TPM / 20 RPD and `gemini-embedding-001` 100 RPM / 30k TPM / 1k RPD. 200,000 characters (~57k tokens) can't be embedded within one minute, so `MAX_PASTED_TEXT_CHARS` is 80,000 (measured: ready in 34 s, 103 chunks). The acceptance checks use 80,000 / 80,001 instead of 200,000 / 200,001 and ~78,000 for "near limit".
+- Summaries use `SUMMARY_MODEL` = `gemini-3.5-flash-lite` (user decision after the preview showed no summary: Flash took over a minute or didn't answer that afternoon). Flash-Lite took 1.3 s for the fixture, with no thinking, and has its own free-tier quota: 15 RPM / 250k TPM / 500 RPD (read 2026-11-15). Before the switch: the summary call took about 20 s on `gemini-3.8-flash` (it thinks ~1,000 tokens; `thinkingLevel: "low"` changes nothing and `minimal` isn't supported), so a process call takes 30–35 s whatever the size. It fits the 45 s budget; a slower day shows as "Processing timed out." or INTERNAL and can be retried.
+- The summary call lives in `rag/summarize.ts` (one function, next to `embed.ts`) instead of inline in the service.
+- Title over 80 characters gets the message "Titles can be up to 80 characters." (the spec gave none).
+- The chip shows "Processing" in place of the type while pending or processing, and a "Try again" chip shows processing from the click until the call settles, so it doesn't sit on "failed" until the claim shows up in a refresh.
+- `components/notebook/process-source.ts` holds the client's fire-and-forget process call, shared by the add form and the chip.
+- Review round 1: the Shelf shows "Couldn't load your sources. Trying again…" and keeps polling when listing sources fails, instead of the notebook's error page. A failed notebook load during a poll still shows the error page (with "Try again"); avoiding that too would need a separate status route.
+- Review round 1: a source shows as stuck 30 s after the claim would accept it (clock-skew margin between the server and Postgres), `markReady` and `markFailed` run outside the budget with their own 5 s timeout (`FINALIZE_DB_TIMEOUT_MS`, review round 2), and `markFailed` only updates a `processing` row, so a source that finished is never marked failed.
+- Review round 1, agreed by the user: the summary is best-effort. A failed summary call (quota or timeout) is logged and the source still becomes ready with no summary; the popover then says "No summary for this source. Its passages are still used in answers." This departs from R10's "any error after the claim fails the source".
+- Follow-up for NB-008: at 30k embedding tokens/min, a PDF can carry about as much text as an 80,000-character paste, so `MAX_PDF_PAGES` must drop far below 300 (roughly 25–30 text-heavy pages); measure it there.
+- Follow-up before the demo: summaries no longer use the Flash quota (Flash-Lite, 500/day), but the 20 Flash requests/day still cover every chat answer, and `gemini-3.8-flash` hung on 2026-11-15; choose the chat model with NB-009 (e.g. measure Flash and Flash-Lite side by side, or a paid tier).

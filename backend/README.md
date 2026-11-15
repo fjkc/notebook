@@ -35,15 +35,22 @@ backend/
       index.ts            entry for "@repo/backend/access" (not server-only, the proxy imports it)
     db/                   typed query helpers: notebooks, sources, chunks, messages, notes
       notebooks.ts        list (with source counts), get, count, insert, rename, delete
+      sources.ts          insert, list, get, counts, claim (claim_source RPC), mark ready/failed, delete
+      chunks.ts           insertMany only, in batches (the documented owner_id exception, see below)
     services/             notebooks, sources, chat, notes, health: one module per area
       notebooks.ts        list, get, create (limit), rename, delete
+      sources.ts          list (stuck → failed), create text (limits), process (pipeline), delete (+ test)
+      ownership.ts        assertNotebookOwner, assertSourceOwner (+ test)
     ai/
       models.ts           the only place with Gemini model IDs
       prompts.ts          the only place with prompts
+      gemini.ts           provider with the server key, created lazily; AI_MAX_RETRIES
+      errors.ts           toAiError(): Gemini 429 → RATE_LIMITED, else INTERNAL (+ test)
     rag/
       extract.ts          pdf (unpdf) / url (readability + linkedom) / text → pages
       chunk.ts            + chunk.test.ts
       embed.ts            batched embeddings, 768 dims
+      summarize.ts        a source's 3–4 sentence summary
       retrieve.ts         match_chunks wrapper
       url-guard.ts        SSRF protection + url-guard.test.ts
     shared/               client-safe, no server-only imports
@@ -91,6 +98,7 @@ export async function renameNotebook(ownerId: string, input: unknown) {
 - Inputs are `unknown` and parsed with zod. Never trust types from the caller. A `ZodError` maps to `VALIDATION`.
 - Ownership first: any function that takes a notebook or source ID calls `assertNotebookOwner` / `assertSourceOwner` before anything else. A foreign ID gets `NOT_FOUND`, never 403.
 - Every query has `.eq("owner_id", ownerId)` or goes through a function that does. No unscoped queries, ever.
+- **One documented exception:** `db/chunks.insertMany`. The `chunks` table has no `owner_id`; only `processSource` calls it, with rows built from a source it has just claimed for the owner, and it never reads or deletes. Chunks are deleted only inside the owner-scoped `claim_source` and by the cascade from `sources`.
 - Throw `AppError(code)` for expected failures. Let unexpected errors bubble up, and the frontend maps them to `INTERNAL`.
 
 **Data and concurrency**

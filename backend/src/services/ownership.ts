@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import * as notebooks from "../db/notebooks";
+import * as sources from "../db/sources";
 import { AppError } from "../errors";
 import { isUuid } from "../shared/ids";
 
@@ -19,4 +20,18 @@ export async function assertNotebookOwner(ownerId: unknown, notebookId: unknown)
 
   const row = await notebooks.findOwned(owner.data, notebook.data);
   if (!row) throw new AppError("NOT_FOUND");
+}
+
+/**
+ * Throws NOT_FOUND unless the source exists and belongs to the owner (malformed IDs included).
+ * Returns the row, so callers don't load it twice.
+ */
+export async function assertSourceOwner(ownerId: unknown, sourceId: unknown): Promise<sources.SourceForProcessing> {
+  const owner = Uuid.safeParse(ownerId);
+  const source = Uuid.safeParse(sourceId);
+  if (!owner.success || !source.success) throw new AppError("NOT_FOUND");
+
+  const row = await sources.getOwned(owner.data, source.data);
+  if (!row) throw new AppError("NOT_FOUND");
+  return row;
 }

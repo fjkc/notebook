@@ -50,7 +50,7 @@ frontend/
       ui/                             shadcn components, restyled to our design
       shell/                          TopBar, Wordmark, ThemeToggle, ErrorView
       home/                           NotebookRow, NewNotebookButton
-      notebook/                       layout, Shelf, Ask, Reader, notebook menu and dialogs
+      notebook/                       layout, Shelf (chips, popover, add dialog, poller), Ask, Reader, notebook menu and dialogs
     lib/
       config.ts                       APP_NAME, UI-only constants
       owner.ts                        getOwnerId(): requires a valid session, returns the owner

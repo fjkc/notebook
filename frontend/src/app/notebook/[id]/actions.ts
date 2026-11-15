@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { deleteNotebook as remove, renameNotebook as rename } from "@repo/backend";
+import {
+  createTextSource as createText,
+  deleteNotebook as remove,
+  deleteSource as removeSource,
+  renameNotebook as rename,
+} from "@repo/backend";
 import { runAction, type ActionResult } from "@/lib/action";
 
 export async function renameNotebook(input: { id: string; title: string }): Promise<ActionResult<{ id: string }>> {
@@ -24,4 +29,24 @@ export async function deleteNotebook(input: { id: string }): Promise<ActionResul
     await remove(ownerId, input);
     return null;
   });
+}
+
+/** Adds a pending text source; the client then calls the process route (NB-007 R13). */
+export async function createTextSource(input: {
+  notebookId: string;
+  title?: string;
+  text: string;
+}): Promise<ActionResult<{ sourceId: string }>> {
+  const result = await runAction("createTextSource", (ownerId) => createText(ownerId, input));
+  if (!result.ok) return result;
+  revalidatePath(`/notebook/${result.data.notebookId}`);
+  return { ok: true, data: { sourceId: result.data.sourceId } };
+}
+
+/** Deletes a source in any status; its chunks go with it. */
+export async function deleteSource(input: { id: string }): Promise<ActionResult<null>> {
+  const result = await runAction("deleteSource", (ownerId) => removeSource(ownerId, input));
+  if (!result.ok) return result;
+  revalidatePath(`/notebook/${result.data.notebookId}`);
+  return { ok: true, data: null };
 }

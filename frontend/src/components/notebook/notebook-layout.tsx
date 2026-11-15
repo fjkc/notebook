@@ -1,3 +1,4 @@
+import type { SourceListItem } from "@repo/backend";
 import { Ask } from "./ask";
 import { Reader } from "./reader";
 import { Shelf } from "./shelf";
@@ -9,10 +10,10 @@ import { Shelf } from "./shelf";
  * - tablet (640–1023 px): Shelf strip, Ask full width, the Reader as a sheet from Ask's header;
  * - mobile (< 640 px): "Sources (n)" opens the Shelf as a bottom sheet, Ask fills the screen.
  */
-export function NotebookLayout() {
+export function NotebookLayout({ notebookId, sources }: { notebookId: string; sources: SourceListItem[] | null }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <Shelf />
+      <Shelf notebookId={notebookId} sources={sources} />
       <div className="flex min-h-0 flex-1">
         <Ask />
         <Reader />
