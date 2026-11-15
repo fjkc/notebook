@@ -69,10 +69,12 @@ If the branch already exists locally (an aborted attempt or a closed PR), ask wh
 - Update `docs/ARCHITECTURE.md` or a folder README if the design changed.
 - Commit: `docs(NB-XXX): tick implemented` or fold it into the last logical commit.
 
-## 7. Push, open the PR, report, stop
+## 7. Push, open the PR, run the review rounds, report, stop
 
 - Push and open the PR exactly as in `WORKFLOW.md` §4:
   - Title `<type>(NB-XXX): <what, in plain words>`, `--assignee @me`.
   - Body: spec link first (absolute URL on this branch), then the emoji sections. "How to verify" lists the real check results and every acceptance criterion as `[x]` met or `[ ]` pending, with the reason.
 - Tell the user the commits (hashes) and that they're pushed, give the PR link, and list anything pending or that needs them (keys, dashboard steps, decisions).
-- **Then stop.** Don't start `/review`, don't merge, don't start the next spec. All three need the user to ask.
+- Then run the two automatic review rounds on the PR, exactly as `WORKFLOW.md` §5 "Automatic review rounds" describes.
+- Report as §5 describes: the commits, the review verdicts, what was fixed in each round, every won't-fix decision, every open question, and the commits no agent has reviewed yet.
+- **Then stop.** Don't start a third round, don't merge, don't start the next spec. All three need the user to ask.

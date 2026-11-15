@@ -35,7 +35,7 @@ Run with `/spec [topic]`, or ask in plain words ("let's write the spec for X"). 
 2. Claude reads the relevant section of `docs/ARCHITECTURE.md` and the affected folder READMEs.
 3. Claude branches `docs/NB-XXX-spec` from an up-to-date `main` and writes the spec. Open questions go into the spec's "Open questions" section.
 4. Claude opens a **spec PR** (same PR rules as in section 4, with "Changes" describing what the spec proposes) and reports the link.
-5. The user comments on the PR, and `/review` adds the spec-reviewer's findings. Claude answers by pushing fix commits to the same branch.
+5. Claude runs the two automatic review rounds on it (section 5): the spec-reviewer's findings are triaged and fixed by pushing commits to the same branch. The user comments on the PR too, and Claude answers the same way.
 6. **The user merges the spec PR. That is the approval.** "Open questions" must be empty by then.
 
 **Changing an approved spec.** Before implementation starts (or when the user wants the change reviewed on its own), the change gets its own PR: same ID, branch `docs/NB-XXX-spec-change-<word>`, the existing spec file edited in place, title `docs(NB-XXX): spec change: <what>`, merged like a spec PR. A deviation found **during** implementation that the user agrees to stays in the implementation branch as a line under "Notes" (§6), with no separate PR.
@@ -60,9 +60,9 @@ Run with `/implement NB-003`, or ask in plain words ("implement NB-003", "pick u
    ```
    feat(NB-003): add the session token helpers
    ```
-7. **Push and open the PR** (section 4), report the link, then stop. Claude never merges.
+7. **Push and open the PR** (section 4), then run the two automatic review rounds on it (section 5), report, and stop. Claude never merges.
 
-After review (yours, or the agents' via `/review`, see section 5): when asked, Claude triages the findings with the loop gate (section 5), pushes fixes as commits to the same branch (no force-push unless asked), and replies in every thread: what was fixed, why something won't be fixed, or a question for you. After a merge, Claude switches back to `main`, pulls, and waits for the next instruction. When the last spec of a milestone merges, Claude tells the user to check production against the milestone's "Done when".
+After review (yours, or the agents' via `/review`, see section 5): in the automatic review rounds, or when asked, Claude triages the findings with the loop gate (section 5), pushes fixes as commits to the same branch (no force-push unless asked), and replies in every thread: what was fixed, why something won't be fixed, or a question for you. After a merge, Claude switches back to `main`, pulls, and waits for the next instruction. When the last spec of a milestone merges, Claude tells the user to check production against the milestone's "Done when".
 
 ## 4. Pull requests
 
@@ -130,13 +130,27 @@ Triggered by `/review [PR number] [--security | --no-security]`, or by asking "r
 - **How it runs:**
   - The agents start fresh, with no context from the conversation that wrote the code. They get only the facts and treat the PR description as claims to verify.
   - They run in the background and in parallel. A hook limits them to a small read-only tool surface: `git` read commands, `gh pr view/diff/checks`, and reading files inside the project.
-  - `/review` refuses to run when `.claude/` or `CLAUDE.md` in the local checkout differ from `main` (or contain untracked files), so a PR can't review itself with its own rules.
+  - `/review` refuses to run when `.claude/` or `CLAUDE.md` in the local checkout differ from `main` (or contain untracked files), so a PR can't review itself with its own rules. In the automatic review rounds it switches to the base branch instead (below).
   - Claude merges their findings and posts **one GitHub review**: inline comments on the code that causes each finding, and a summary with the verdict, the acceptance criteria and the security status.
 - **Re-reviews:**
   - Each review records its round and commit in a hidden marker.
   - The next `/review` on the same PR focuses on the commits since then, while still checking their impact on the whole PR and codebase.
   - Problems in untouched code are only re-raised if they're blockers.
-- **What happens next:** a review never changes code. Findings are fixed when you ask, following the loop gate below.
+- **What happens next:** a review never changes code. Findings are fixed in the automatic review rounds below, or when you ask, following the loop gate.
+
+### Automatic review rounds
+
+Every PR Claude opens (spec PRs, implementation PRs, any other) gets **two review rounds** right after it's opened, without being asked (NB-011). The skills (`/spec`, `/implement`) point here instead of repeating the steps.
+1. **Round 1:** `/review` on the PR, then triage every finding with the loop gate, push the fixes as commits to the same branch, reply in every thread (or in one PR comment when the findings ended up in the summary), and update the PR description. Findings Claude is unsure about stay open questions for you and don't hold up round 2.
+2. **Round 2:** `/review` again. It re-reviews the commits since round 1. Triage, fix, reply and update the description the same way; nits aren't fixed in this round. **If round 1 pushed no commits, round 2 is skipped**: there's nothing new to review.
+3. **Report and stop:** the verdicts, what was fixed with the commits of each round, every won't-fix decision, every open question for you, and the commits pushed after the last review (round 2's fixes, which no agent has seen). A third round only when you ask. Merging stays yours.
+
+- **Counting:** "round 1" and "round 2" here mean the first and second automatic run, also when the PR already had reviews (`/review`'s own marker count may be higher). The loop gate's "nits only in round 1" follows this count.
+- **Protected paths:** fixes in the automatic rounds never change `.claude/**`, `CLAUDE.md`, `.github/**` or permission settings, unless the PR's spec is about exactly that change. A finding that asks for such a change becomes an open question in the report.
+- **Spec PRs:** fixes stay inside the spec (and the docs the spec PR already touches). Questions only you can decide go into the report; the rounds don't decide them.
+- **PRs that change `.claude/` or `CLAUDE.md`:** the review guard won't review from the PR's checkout, so each round's `/review` runs from an up-to-date checkout of the base branch (the agents read the PR through `git` and `gh`, with `local_head_matches: false`), and Claude switches back to the PR branch for the fixes. These PRs are reviewed under the base branch's rules, so a PR that changes `/review` itself may still stop and ask you where the base version does.
+- **Stop and ask** instead of continuing when the working tree isn't clean before a switch, or the guard still fails on the base branch. Claude never stashes, resets or cleans files to make a round run.
+- While a round's agents run, the working tree stays untouched. You can stop the rounds at any time.
 
 ### Loop gate: which findings get fixed
 
