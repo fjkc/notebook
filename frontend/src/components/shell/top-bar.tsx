@@ -15,7 +15,7 @@ export function TopBar({ title, actions }: TopBarProps) {
   return (
     <header className="border-b border-rule">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:gap-4">
-        <Link href="/" className="shrink-0 rounded-sm">
+        <Link href="/" className="flex shrink-0 items-center rounded-sm">
           <Wordmark compact={title !== undefined} />
         </Link>
         <div className="flex min-w-0 flex-1 items-center gap-1">

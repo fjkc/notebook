@@ -54,7 +54,7 @@ export function AskInput({ disabledReason, busy, onSend, onStop }: AskInputProps
       readOnly={disabled}
       aria-invalid={tooLong || undefined}
       aria-describedby={showCounter ? counterId : undefined}
-      className="max-h-48 min-h-10 resize-none pr-12 aria-disabled:cursor-not-allowed"
+      className="max-h-48 min-h-11 resize-none pr-12 aria-disabled:cursor-not-allowed"
     />
   );
 
