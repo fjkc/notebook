@@ -55,7 +55,7 @@ frontend/
       config.ts                       APP_NAME, UI-only constants
       owner.ts                        getOwnerId(): requires a valid session, returns the owner
       owner-cookie.ts                 cookie name and max age, shared with proxy.ts
-      http.ts                         toErrorResponse(), withRoute() logging wrapper
+      http.ts                         toErrorResponse(), withRoute() logging wrapper, toLoggedErrorBody() (shared with runAction)
       action.ts                       ActionResult, runAction(): every Server Action goes through it
       supabase/browser.ts             publishable key, uploadToSignedUrl only
     proxy.ts                          access gate, then owner cookie (imports @repo/backend/shared and /access)

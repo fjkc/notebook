@@ -127,3 +127,5 @@ Deviations found during implementation, one line each.
 - `createNotebook` takes no parameters: it needs neither the previous state nor the form data, `useActionState` accepts it as is, and lint flags unused ones.
 - One extra file, `components/shell/error-view.tsx`: the body both error pages share.
 - `lib/http.ts` exports `toLoggedErrorBody`, the error mapping and detail log that `withRoute` and `runAction` now share.
+- `deleteNotebook` doesn't call `revalidatePath("/")` (R5): in a Server Action it re-renders the current page, the deleted notebook, so the not-found view flashed before the client navigated. `router.replace("/")` loads a fresh home page instead.
+- R2's "may overshoot by one" is really "a burst of parallel creates may overshoot": count then insert has no lock. Still harmless (review round 1).

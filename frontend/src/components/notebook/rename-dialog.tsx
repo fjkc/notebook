@@ -23,7 +23,8 @@ export function RenameDialog({ id, title, open, onOpenChange }: RenameDialogProp
 
   function handleOpenChange(next: boolean) {
     if (pending) return; // Can't be closed while saving.
-    if (next) setError(null);
+    // Radix only reports closes here (the menu opens the dialog through `open`), so clear on close.
+    setError(null);
     onOpenChange(next);
   }
 

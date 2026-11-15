@@ -27,8 +27,9 @@ export async function getNotebook(ownerId: string, id: unknown): Promise<noteboo
 }
 
 /**
- * Creates a notebook titled "Untitled notebook" (the schema default). Count then insert: two
- * parallel creates may overshoot the limit by one, which is harmless.
+ * Creates a notebook titled "Untitled notebook" (the schema default). Count then insert, without a
+ * lock: a burst of parallel creates may overshoot the limit. Harmless here, since the app is behind
+ * the password gate and a new owner cookie gives a fresh allowance anyway.
  */
 export async function createNotebook(ownerId: string): Promise<{ id: string }> {
   if ((await notebooks.countByOwner(ownerId)) >= MAX_NOTEBOOKS_PER_OWNER) {
