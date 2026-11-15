@@ -112,7 +112,7 @@ Users can paste text into a notebook and watch it go from "processing" to "ready
 
 ## Implementation
 
-- [ ] **Implemented** (`feat/NB-007-text-sources`)
+- [x] **Implemented** (`feat/NB-007-text-sources`)
   - **User steps before merge** (`/implement` asks for both in one message):
     - Run `infra/supabase/migrations/0002_claim_source.sql` in the Supabase SQL editor (copied with `pbcopy`). The preview needs it too, since preview and production share the database.
     - Read the free-tier limits for the two models from the AI Studio rate-limit page (R16) and tell Claude the numbers.
@@ -141,3 +141,11 @@ None.
 
 ## Notes
 Deviations found during implementation, one line each.
+- R16: free tier on 2026-11-15 is `gemini-3.8-flash` 5 RPM / 250k TPM / 20 RPD and `gemini-embedding-001` 100 RPM / 30k TPM / 1k RPD. 200,000 characters (~57k tokens) can't be embedded within one minute, so `MAX_PASTED_TEXT_CHARS` is 80,000 (measured: ready in 34 s, 103 chunks). The acceptance checks use 80,000 / 80,001 instead of 200,000 / 200,001 and ~78,000 for "near limit".
+- The summary call takes about 20 s on `gemini-3.8-flash` (it thinks ~1,000 tokens; `thinkingLevel: "low"` changes nothing and `minimal` isn't supported), so a process call takes 30–35 s whatever the size. It fits the 45 s budget; a slower day shows as "Processing timed out." or INTERNAL and can be retried.
+- The summary call lives in `rag/summarize.ts` (one function, next to `embed.ts`) instead of inline in the service.
+- Title over 80 characters gets the message "Titles can be up to 80 characters." (the spec gave none).
+- The chip shows "Processing" in place of the type while pending or processing, and a "Try again" chip shows processing from the click until the call settles, so it doesn't sit on "failed" until the claim shows up in a refresh.
+- `components/notebook/process-source.ts` holds the client's fire-and-forget process call, shared by the add form and the chip.
+- Follow-up for NB-008: at 30k embedding tokens/min, a PDF can carry about as much text as an 80,000-character paste, so `MAX_PDF_PAGES` must drop far below 300 (roughly 25–30 text-heavy pages); measure it there.
+- Follow-up before the demo: 20 Flash requests/day covers summaries and chat answers together; decide on a fix (e.g. a paid tier or another model) with NB-009.

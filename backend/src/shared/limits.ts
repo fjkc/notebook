@@ -15,8 +15,11 @@ export const MAX_SOURCES_PER_NOTEBOOK = 10;
 /** Most new sources one owner may add per hour. */
 export const MAX_NEW_SOURCES_PER_OWNER_PER_HOUR = 20;
 
-/** Longest pasted text, in characters. */
-export const MAX_PASTED_TEXT_CHARS = 200_000;
+/**
+ * Longest pasted text, in characters. Set by the embedding free tier (30,000 tokens/min, NB-007 R16):
+ * 80,000 characters are about 23,000 tokens with chunk overlap and reached ready in 34 s.
+ */
+export const MAX_PASTED_TEXT_CHARS = 80_000;
 
 /** Longest source title, in characters (given or derived from the text). */
 export const MAX_SOURCE_TITLE_CHARS = 80;

@@ -72,7 +72,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - Text source end to end (create → process → chunks → ready).
 - URL source (readability, SSRF guard, timeouts, size limit).
 - PDF source (signed upload URL, unpdf per page, `NO_TEXT_FOUND`).
-- Source summaries and notebook suggested questions.
+- Source summaries.
 - Sources UI: add dialog (three types), list with status, polling, retry on failed, delete, view summary, limits enforced with clear messages.
 - Stuck `processing` for more than 5 min is treated as failed and retryable.
 - Deleting a notebook removes the PDFs of its sources from storage.
@@ -87,6 +87,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - `POST /api/chat`: streaming, citation metadata, persistence, throttle.
 - Chat UI: Markdown rendering, citation hooks that open the Reader (`docs/DESIGN.md` → "Layout"), source highlighting on the Shelf, suggested questions, source include/exclude, disabled state without ready sources.
 - History on page open, clear chat, friendly `RATE_LIMITED` handling.
+- Notebook suggested questions from ready summaries (moved from M4, NB-010).
 
 **Done when:** on production, answers cite the right passages, a citation shows source, page and excerpt, an unanswerable question gets an honest "not in your sources" reply, and a German question gets a German answer. Then tag `v1.0-mvp`.
 
@@ -136,6 +137,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 
 - Notebooks are tied to one browser (no accounts).
 - Scanned PDFs without a text layer aren't supported.
-- Gemini free-tier rate limits apply; heavy use shows a "try again" message.
+- Gemini free-tier rate limits apply; heavy use shows a "try again" message. Pasted text is capped at 80,000 characters to fit the embedding limit, and the text model allows only 20 requests a day (summaries and answers).
 - Processing runs in a serverless function without a queue; very large documents may time out.
+- The hourly source limit counts existing sources, so deleting one frees room, and "Try again" isn't limited. Acceptable behind the password gate.
 - No generated notes or audio recaps: cut to keep the core reliable (M6, M7); they are the natural next features.

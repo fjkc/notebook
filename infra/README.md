@@ -23,6 +23,7 @@ infra/
   supabase/
     migrations/
       0001_init.sql       complete initial schema
+      0002_claim_source.sql  claim_source(): atomic claim for processing, deletes old chunks (NB-007)
 ```
 
 ## Topology
@@ -33,7 +34,7 @@ Hosting (Vercel, `fra1`), database and storage (Supabase, Frankfurt), AI (Gemini
 
 1. **Gemini:** create an API key at https://aistudio.google.com. Do not enable billing on that project.
 2. **Supabase:** create a project in Frankfurt and store the DB password in a password manager.
-3. **Schema:** in the Supabase SQL editor, run `infra/supabase/migrations/0001_init.sql` once. Check for the five tables (`notebooks`, `sources`, `chunks`, `messages`, `notes`), the `match_chunks` function and the two buckets.
+3. **Schema:** in the Supabase SQL editor, run every file in `infra/supabase/migrations/` once, in order (`0001_init.sql`, then `0002_claim_source.sql`, …). Check for the five tables (`notebooks`, `sources`, `chunks`, `messages`, `notes`), the `match_chunks` and `claim_source` functions and the two buckets.
 4. **Keys:** copy the project URL, the publishable (or anon) key and the secret (or service_role) key.
 5. **Local env:** `cp frontend/.env.example frontend/.env.local` and fill it in. Generate the two access gate values, never choose them by hand:
    ```bash
