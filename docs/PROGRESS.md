@@ -10,7 +10,7 @@ Follow `infra/README.md` → "Setup from scratch", steps 1–5: Gemini key, Supa
 
 ## M1 · Tooling, scaffold and first deployment · done
 
-1. **Tooling (next up):** project slash commands so the workflow runs the same way every time:
+1. **Tooling:** project slash commands so the workflow runs the same way every time:
    - `/spec`: propose or write the next spec on a `docs/NB-XXX-spec` branch and open the spec PR.
    - `/implement NB-XXX[.n]`: check the spec is merged, branch, implement, verify, tick, open the PR.
    - Both follow `WORKFLOW.md` and don't duplicate it.
@@ -19,7 +19,7 @@ Follow `infra/README.md` → "Setup from scratch", steps 1–5: Gemini key, Supa
 4. shadcn/ui init and base components (button, input, textarea, dialog, dropdown-menu, sheet, popover, tooltip, scroll-area, skeleton, sonner).
 5. Foundations: `APP_NAME` placeholder, limits, error codes and `AppError`, model IDs, error-to-response helper.
 6. Supabase clients: server (backend, secret key) and browser (frontend, publishable key, uploads only).
-7. Owner cookie in `proxy.ts`/`middleware.ts`, `getOwnerId()`, `assertNotebookOwner()`.
+7. Owner cookie in `proxy.ts`, `getOwnerId()`, `assertNotebookOwner()`.
 8. `GET /api/health`.
 9. README skeleton: title placeholder, one-paragraph description, "inspired by Google's NotebookLM" note, setup steps.
 10. **User:** import the repo in Vercel (`infra/README.md` → step 6) and deploy.
@@ -89,7 +89,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - History on page open, clear chat, friendly `RATE_LIMITED` handling.
 - Notebook suggested questions from ready summaries (moved from M4, NB-010).
 
-**Done when:** on production, answers cite the right passages, a citation shows source, page and excerpt, an unanswerable question gets an honest "not in your sources" reply, and a German question gets a German answer. Then tag `v1.0-mvp`.
+**Done when:** on production, answers cite the right passages, a citation shows source, page and excerpt, an unanswerable question gets an honest "not in your sources" reply, and a German question gets a German answer. Then tag `v1.0-mvp` (tagged on 2026-11-15, see the decisions log).
 
 ## M6 · Generated notes (nice-to-have) · cut
 
@@ -139,7 +139,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 
 - Notebooks are tied to one browser (no accounts).
 - Scanned PDFs without a text layer aren't supported.
-- Gemini free-tier rate limits apply; heavy use shows a "try again" message. Pasted text is capped at 80,000 characters to fit the embedding limit, chat answers and source summaries share a Flash-Lite quota of 500 requests a day (summaries are skipped when it runs out), and embeddings for sources and questions share 1,000 requests a day.
+- Gemini free-tier rate limits apply; heavy use shows a "try again" message. Pasted text is capped at 80,000 characters to fit the embedding limit, chat answers, source summaries and suggested questions share a Flash-Lite quota of 500 requests a day (summaries and suggested questions are skipped when it runs out), and embeddings for sources and questions share 1,000 requests a day.
 - PDFs can have up to 100 pages and 80,000 characters of text; web pages up to 80,000 characters (the pasted-text cap, set by the embedding free tier). Longer documents fail with a message asking to split them or paste the part needed.
 - Web pages that need a login, sit behind a paywall or render their text with JavaScript can't be read; only `text/html` pages up to 5 MB on the default ports.
 - Processing runs in a serverless function without a queue; very large documents may time out.

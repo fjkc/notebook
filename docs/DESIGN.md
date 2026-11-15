@@ -33,7 +33,7 @@ Plus `scrim` (the dimmed backdrop behind dialogs and sheets) and the overlay sha
 - `edge` (non-text, needs 3:1): light 3.49 on surface and 3.23 on paper; dark 3.52 on surface and 3.84 on paper.
 
 **Rules**
-- `hook` appears only on citations, links, the focus ring and the favicon. Primary buttons are `ink` on `paper`, so the accent keeps its meaning.
+- `hook` appears only on citations, links, the focus ring, the wordmark and the favicon. Primary buttons are `ink` on `paper`, so the accent keeps its meaning.
 - Not used anywhere: Google's logo colours, Material You tonal palettes, cream with terracotta, black with a neon accent, gradients.
 
 ## Type
@@ -105,7 +105,7 @@ None of these are NotebookLM's terms (CLAUDE.md rule 1).
 Breakpoints: mobile below 640 px, tablet 640–1023 px, desktop from 1024 px. Layout switches only through CSS breakpoints.
 
 ### App shell
-A 56 px top bar with a `rule` line below and no shadow: the wordmark (link home) on the left, the theme toggle on the right. Notebook pages (M3) add the notebook title. `/login` has no top bar.
+A 56 px top bar with a `rule` line below and no shadow: the wordmark (link home) on the left, the theme toggle on the right. Notebook pages add the notebook title (truncated, the full title in a tooltip) and a "Notebook options" menu (Rename, Delete notebook) before the theme toggle. `/login` has no top bar.
 
 ### Home, desktop
 
@@ -175,6 +175,8 @@ Empty state (no notebooks), in place of the list:
 
 - The Shelf is one horizontal strip of source chips: a status dot, the title, then the page count for a PDF or the type ("Text", "Web page") for the others. It scrolls sideways when full; "Add source" sits at its end.
 - **Reader:** for the hook last pressed, it shows the source title, the page (or the type) and the cited excerpt (`Citation.excerpt`, up to 400 characters, ARCHITECTURE §7) in Newsreader with the `marker` highlight, and below it the source's summary (from the notebook's sources list). Pressing a hook also highlights that source's chip on the Shelf; pressing it again, or "Close", clears both. Without an active hook the pane says how to open a passage.
+- **Ask controls (NB-010):** the empty chat shows up to 5 suggested questions as outline buttons; a "Clear chat" ghost button in the Ask header (hidden while an answer streams) opens a confirmation dialog.
+- **Source selection (NB-010):** each ready source's popover has a "Use in answers" toggle. An excluded chip shows `graphite` text and a hollow dot, and a line above the input says "Answering from n of m sources"; with none left, the input is disabled with "Pick at least one source to ask about."
 - **Takeaways** would list the generated notes (Brief, Q&A, Study sheet, Spoken recap). **Not planned:** M6 and M7 are cut, so the right pane, the tablet sheet and the mobile top bar show only the **Reader**, without tabs. The wireframes keep the tab to show where it would go.
 
 ### Notebook, tablet (640–1023 px)
@@ -216,7 +218,7 @@ The Shelf stays; Ask fills the width; the Reader opens as a sheet from the right
 └──────────────────────────────┘
 ```
 
-The Shelf collapses into a "Sources (n)" button that opens a bottom sheet; Ask fills the screen; a hook opens the Reader as a bottom sheet; Takeaways is the second tab in the top bar.
+The Shelf collapses into a "Sources (n)" button that opens a bottom sheet; Ask fills the screen; a hook opens the Reader as a bottom sheet. (Takeaways would be a second tab in the top bar; not planned, M6 cut.)
 
 ### Login
 

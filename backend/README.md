@@ -33,18 +33,19 @@ backend/
     supabase.ts           server client (secret key), created lazily
     access/               password gate: env, session tokens, password check, safe redirect
       index.ts            entry for "@repo/backend/access" (not server-only, the proxy imports it)
-    db/                   typed query helpers: notebooks, sources, chunks, messages, notes
+    db/                   typed query helpers: notebooks, sources, storage, chunks, messages
       notebooks.ts        list (with source counts), get, count, insert, rename, delete, get/setSuggestedQuestions
       sources.ts          insert, list, get, counts, claim (claim_source RPC), mark ready/failed, delete, listReadySummaries
       storage.ts          the private "sources" bucket: signed upload token, download, quiet remove
       chunks.ts           insertMany in batches, matchChunks (match_chunks RPC); the documented owner_id exception, see below
       messages.ts         chat messages: insert, listRecent, listAll, countUserMessagesSince, removeByNotebook
-    services/             notebooks, sources, chat, notes, health: one module per area
+    services/             notebooks, sources, chat, health: one module per area
       notebooks.ts        list, get, create (limit), rename, delete, refreshSuggestedQuestions (+ test)
-      sources.ts          list (stuck → failed), create text (limits), process (pipeline), delete; both refresh the suggested questions (+ test)
+      sources.ts          list (stuck → failed), create text / URL / PDF upload (limits), process (pipeline), delete; both refresh the suggested questions (+ test)
       ownership.ts        assertNotebookOwner, assertSourceOwner (+ test)
       chat.ts             startChat (validate, own, throttle, history, store question, retrieve), saveAnswer, getHistory, clearChat
       chat-history.ts     pure helpers: buildHistory, collapseResends, isEmptyAnswer (+ test)
+      health.ts           checkDatabase: the keep-alive query with a 5 s cap (+ test)
     ai/
       models.ts           the only place with Gemini model IDs
       prompts.ts          the only place with prompts: source summary, chat system prompt, suggested questions and their cleaning (+ test)
@@ -120,7 +121,7 @@ export async function renameNotebook(ownerId: string, input: unknown) {
 - No module-level side effects: clients are created lazily, and env is validated with zod on first access. Importing a module never needs env vars, and a missing key fails with a clear server log.
 - Logs: one structured line per operation, never secrets or document text.
 
-Pipelines, AI parameters, limits and the URL guard rules are specified in `docs/ARCHITECTURE.md` (sections 6–9). Implement them from there.
+Pipelines, AI parameters, limits and the URL guard rules are specified in `docs/ARCHITECTURE.md` (sections 6–7). Implement them from there.
 
 ## Test
 
@@ -128,7 +129,7 @@ Pipelines, AI parameters, limits and the URL guard rules are specified in `docs/
 npm test -w backend
 ```
 
-Tests cover pure logic: chunker, citation parser, URL guard (with DNS resolution injected). `server-only` throws outside a React Server environment, so `vitest.config.ts` aliases it to an empty module:
+Tests cover pure logic (chunker, citation parser, URL guard with DNS resolution injected, prompts, access tokens, …) and the services with the DB and AI modules mocked. `server-only` throws outside a React Server environment, so `vitest.config.ts` aliases it to an empty module:
 
 ```ts
 resolve: { alias: { "server-only": fileURLToPath(new URL("./test/empty.ts", import.meta.url)) } }
