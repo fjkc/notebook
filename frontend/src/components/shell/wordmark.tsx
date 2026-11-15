@@ -32,12 +32,19 @@ export function HookMark({ className }: { className?: string }) {
   );
 }
 
-/** "Notehooked" in Newsreader with the mark in plum before it. */
-export function Wordmark({ className }: { className?: string }) {
+/**
+ * "Notehooked" in Newsreader with the mark in plum before it. `compact` hides the name below 640 px
+ * (kept for screen readers), so a notebook title next to it gets the room.
+ */
+export function Wordmark({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
     <span className={`inline-flex items-center gap-1.5 ${className ?? ""}`}>
       <HookMark className="size-7 text-hook" />
-      <span className="font-reading text-xl leading-none font-medium tracking-tight">{APP_NAME}</span>
+      <span
+        className={`font-reading text-xl leading-none font-medium tracking-tight ${compact ? "max-sm:sr-only" : ""}`}
+      >
+        {APP_NAME}
+      </span>
     </span>
   );
 }
