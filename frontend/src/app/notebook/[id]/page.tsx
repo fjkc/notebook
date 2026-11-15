@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { AppError, getNotebook, type Notebook } from "@repo/backend";
+import { AppError, getNotebook, listSources, type Notebook } from "@repo/backend";
 import { NotebookLayout } from "@/components/notebook/notebook-layout";
 import { NotebookMenu } from "@/components/notebook/notebook-menu";
 import { TopBar } from "@/components/shell/top-bar";
@@ -29,11 +29,13 @@ export async function generateMetadata({ params }: PageProps<"/notebook/[id]">):
 export default async function NotebookPage({ params }: PageProps<"/notebook/[id]">) {
   const notebook = await loadNotebook((await params).id);
   if (!notebook) notFound();
+  // Polled with router.refresh() while a source is processing (NB-007 R14).
+  const sources = await listSources(await getOwnerId(), notebook.id);
 
   return (
     <div className="flex h-dvh flex-col">
       <TopBar title={notebook.title} actions={<NotebookMenu id={notebook.id} title={notebook.title} />} />
-      <NotebookLayout />
+      <NotebookLayout notebookId={notebook.id} sources={sources} />
     </div>
   );
 }
