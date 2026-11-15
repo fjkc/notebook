@@ -51,7 +51,7 @@ describe("processSource", () => {
     vi.mocked(summarizeSource).mockResolvedValue("A summary.");
     vi.mocked(refreshSuggestedQuestions).mockRejectedValue(new AppError("RATE_LIMITED"));
     await expect(processSource(owner, sourceId)).resolves.toEqual({ status: "ready" });
-    expect(refreshSuggestedQuestions).toHaveBeenCalledWith(owner, claimed.notebookId);
+    expect(refreshSuggestedQuestions).toHaveBeenCalledWith(owner, claimed.notebookId, expect.any(AbortSignal));
     expect(markFailed).not.toHaveBeenCalled();
   });
 

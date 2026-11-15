@@ -118,7 +118,8 @@ export function Ask({ notebookId, initialMessages, historyFailed, suggestedQuest
           messages={messages}
           waiting={busy && !lastIsAnswerWithText}
           error={status === "error" && error ? chatErrorMessage(error) : null}
-          onRetry={() => void regenerate(requestOptions)}
+          // With every source excluded a retry would send sourceIds: []; the line above the input says why.
+          onRetry={includedCount > 0 ? () => void regenerate(requestOptions) : null}
         />
       )}
 

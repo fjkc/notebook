@@ -17,8 +17,10 @@ import {
   MAX_PDF_BYTES,
   MAX_SOURCE_TITLE_CHARS,
   MAX_SOURCES_PER_NOTEBOOK,
+  MIN_SUGGESTIONS_TIME_MS,
   PROCESS_BUDGET_MS,
   STUCK_SOURCE_MS,
+  SUGGESTIONS_DEADLINE_MS,
 } from "../shared/limits";
 import { refreshSuggestedQuestions } from "./notebooks";
 import { assertNotebookOwner, assertSourceOwner } from "./ownership";
@@ -236,9 +238,9 @@ async function trySummary(text: string, signal: AbortSignal): Promise<string | n
 }
 
 /** Refreshes the suggested questions; a failure is logged and never fails the source or the delete (NB-010 R5). */
-async function trySuggestedQuestions(ownerId: string, notebookId: string): Promise<void> {
+async function trySuggestedQuestions(ownerId: string, notebookId: string, signal?: AbortSignal): Promise<void> {
   try {
-    await refreshSuggestedQuestions(ownerId, notebookId);
+    await refreshSuggestedQuestions(ownerId, notebookId, signal);
   } catch (error) {
     console.error("[suggestedQuestions] skipped", JSON.stringify(describeError(error)));
   }
@@ -257,6 +259,7 @@ async function extract(ownerId: string, source: sources.SourceForProcessing): Pr
  * A source deleted mid-run surfaces as NOT_FOUND, which the client ignores.
  */
 export async function processSource(ownerId: string, sourceId: unknown): Promise<{ status: "ready" }> {
+  const started = Date.now();
   await assertSourceOwner(ownerId, sourceId);
   const id = sourceId as string;
   const source = await sources.claim(ownerId, id);
@@ -312,7 +315,10 @@ export async function processSource(ownerId: string, sourceId: unknown): Promise
   }
   // After ready, outside the try (it can never mark the source failed), and before the route responds,
   // so the client's refresh after the call already shows the questions (NB-010 R5).
-  await trySuggestedQuestions(ownerId, source.notebookId);
+  // The whole step shares the time left until SUGGESTIONS_DEADLINE_MS, so the route still answers within 60 s.
+  const left = SUGGESTIONS_DEADLINE_MS - (Date.now() - started);
+  if (left >= MIN_SUGGESTIONS_TIME_MS) await trySuggestedQuestions(ownerId, source.notebookId, AbortSignal.timeout(left));
+  else console.error("[suggestedQuestions] skipped", JSON.stringify({ reason: "deadline", leftMs: left }));
   return { status: "ready" };
 }
 

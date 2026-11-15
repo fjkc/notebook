@@ -72,6 +72,10 @@ describe("cleanSuggestedQuestions", () => {
     expect(cleanSuggestedQuestions(["", "1?", " ", "2?", "3?", "4?", "5?", "6?"])).toEqual(["1?", "2?", "3?", "4?", "5?"]);
   });
 
+  it("drops repeats, so they don't take slots", () => {
+    expect(cleanSuggestedQuestions(["Why?", " Why? ", "How?", "1?", "2?", "3?", "4?"])).toEqual(["Why?", "How?", "1?", "2?", "3?"]);
+  });
+
   it("returns nothing when every item is invalid", () => {
     expect(cleanSuggestedQuestions(["", "  ", "y".repeat(121)])).toEqual([]);
   });

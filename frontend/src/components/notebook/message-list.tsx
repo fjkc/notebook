@@ -16,7 +16,8 @@ type MessageListProps = {
   /** True while waiting for the first part of an answer. */
   waiting: boolean;
   error: string | null;
-  onRetry: () => void;
+  /** Null hides "Try again" (e.g. while every source is excluded). */
+  onRetry: (() => void) | null;
 };
 
 /**
@@ -73,9 +74,11 @@ export function MessageList({ messages, waiting, error, onRetry }: MessageListPr
         {error && (
           <li role="alert" className="flex flex-wrap items-center gap-3 text-sm text-danger">
             <span>{error}</span>
-            <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-              Try again
-            </Button>
+            {onRetry && (
+              <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+                Try again
+              </Button>
+            )}
           </li>
         )}
       </ol>

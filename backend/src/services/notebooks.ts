@@ -65,14 +65,21 @@ export async function deleteNotebook(ownerId: string, input: unknown): Promise<v
  * Regenerates the notebook's suggested questions from its ready sources' summaries (NB-010 R5).
  * No summaries → stores [] without a Gemini call. Nothing left after cleaning keeps the old ones.
  * Throws on failure; the callers log and swallow it. Called only from services that have already
- * checked ownership, so the IDs are trusted here.
+ * checked ownership, so the IDs are trusted here. `signal` caps the whole step (the process route's deadline).
+ *
+ * Two refreshes can overlap (sources finishing close together, a delete during processing). The
+ * summaries are read again before the write, and a refresh whose set changed meanwhile doesn't
+ * write: the refresh started by that change covers the newer set.
  */
-export async function refreshSuggestedQuestions(ownerId: string, notebookId: string): Promise<void> {
-  const summaries = await sources.listReadySummaries(ownerId, notebookId);
+export async function refreshSuggestedQuestions(ownerId: string, notebookId: string, signal?: AbortSignal): Promise<void> {
+  const summaries = await sources.listReadySummaries(ownerId, notebookId, signal);
   if (summaries.length === 0) {
-    await notebooks.setSuggestedQuestions(ownerId, notebookId, []);
+    await notebooks.setSuggestedQuestions(ownerId, notebookId, [], signal);
     return;
   }
-  const questions = await generateSuggestedQuestions(summaries);
-  if (questions.length > 0) await notebooks.setSuggestedQuestions(ownerId, notebookId, questions);
+  const questions = await generateSuggestedQuestions(summaries, signal);
+  if (questions.length === 0) return;
+  const current = await sources.listReadySummaries(ownerId, notebookId, signal);
+  if (current.length !== summaries.length || current.some((summary, i) => summary !== summaries[i])) return;
+  await notebooks.setSuggestedQuestions(ownerId, notebookId, questions, signal);
 }

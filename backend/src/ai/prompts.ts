@@ -82,11 +82,11 @@ export function suggestedQuestionsPrompt(summaries: string[]): string {
 
 /**
  * Cleans the model's questions instead of rejecting them (NB-010 R5): trimmed, empty ones and ones
- * over MAX_SUGGESTED_QUESTION_CHARS dropped, the first MAX_SUGGESTED_QUESTIONS kept.
+ * over MAX_SUGGESTED_QUESTION_CHARS dropped, repeats dropped, the first MAX_SUGGESTED_QUESTIONS kept.
  */
 export function cleanSuggestedQuestions(questions: readonly string[]): string[] {
-  return questions
+  const kept = questions
     .map((question) => question.trim())
-    .filter((question) => question.length > 0 && question.length <= MAX_SUGGESTED_QUESTION_CHARS)
-    .slice(0, MAX_SUGGESTED_QUESTIONS);
+    .filter((question) => question.length > 0 && question.length <= MAX_SUGGESTED_QUESTION_CHARS);
+  return [...new Set(kept)].slice(0, MAX_SUGGESTED_QUESTIONS);
 }

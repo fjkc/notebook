@@ -136,8 +136,15 @@ export const MAX_SUGGESTED_QUESTIONS = 5;
 /** A generated suggested question longer than this, in characters, is dropped. */
 export const MAX_SUGGESTED_QUESTION_CHARS = 120;
 
-/**
- * Cap for the suggested-questions call, in ms. Runs after markReady, so 45 s + 5 s + 10 s keeps the
- * process route within its 60 s maxDuration; a timeout is swallowed like any other failure.
- */
+/** Cap for the suggested-questions Gemini call, in ms; a timeout is swallowed like any other failure. */
 export const SUGGESTIONS_TIMEOUT_MS = 10_000;
+
+/**
+ * The suggestions step after markReady must end this long after the process call started, in ms, so the
+ * route answers within its 60 s maxDuration: everything after markReady (two summary reads, the Gemini
+ * call, the write) shares the time left, capped by SUGGESTIONS_TIMEOUT_MS for Gemini.
+ */
+export const SUGGESTIONS_DEADLINE_MS = 55_000;
+
+/** With less time than this left before SUGGESTIONS_DEADLINE_MS, the suggestions step is skipped, in ms. */
+export const MIN_SUGGESTIONS_TIME_MS = 3_000;

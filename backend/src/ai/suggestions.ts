@@ -11,17 +11,18 @@ const SuggestedQuestions = z.object({ questions: z.array(z.string()) });
 
 /**
  * 0–5 cleaned suggested questions from source summaries (NB-010 R5). No retries and its own 10 s
- * timeout, because it runs inside the process route after markReady. Gemini 429 → RATE_LIMITED,
+ * timeout (or the caller's earlier deadline), because it runs inside the process route after markReady. Gemini 429 → RATE_LIMITED,
  * other failures → INTERNAL; the caller logs and swallows both.
  */
-export async function generateSuggestedQuestions(summaries: string[]): Promise<string[]> {
+export async function generateSuggestedQuestions(summaries: string[], signal?: AbortSignal): Promise<string[]> {
+  const timeout = AbortSignal.timeout(SUGGESTIONS_TIMEOUT_MS);
   try {
     const { output } = await generateText({
       model: getGemini()(SUMMARY_MODEL),
       prompt: suggestedQuestionsPrompt(summaries),
       output: Output.object({ schema: SuggestedQuestions }),
       maxRetries: 0,
-      abortSignal: AbortSignal.timeout(SUGGESTIONS_TIMEOUT_MS),
+      abortSignal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     });
     return cleanSuggestedQuestions(output.questions);
   } catch (error) {

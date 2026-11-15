@@ -233,8 +233,8 @@ export async function titlesByIds(ownerId: string, ids: string[]): Promise<Map<s
 }
 
 /** The summaries of the notebook's ready sources that have one, oldest source first. */
-export async function listReadySummaries(ownerId: string, notebookId: string): Promise<string[]> {
-  const { data, error } = await getSupabase()
+export async function listReadySummaries(ownerId: string, notebookId: string, signal?: AbortSignal): Promise<string[]> {
+  let query = getSupabase()
     .from("sources")
     .select("summary")
     .eq("owner_id", ownerId)
@@ -242,6 +242,8 @@ export async function listReadySummaries(ownerId: string, notebookId: string): P
     .eq("status", "ready")
     .not("summary", "is", null)
     .order("created_at", { ascending: true });
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query;
   if (error) fail("listReadySummaries", error);
   return (data ?? []).map((row) => row.summary as string).filter((summary) => summary.trim().length > 0);
 }
