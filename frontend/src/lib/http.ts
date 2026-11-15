@@ -38,13 +38,15 @@ export function toErrorResponse(error: unknown, route = "unknown"): Response {
  *
  * - Throw `AppError` for expected failures instead of returning an error response, so the
  *   log line carries the error code.
- * - Streaming routes (chat): this logs when the Response is returned, before the stream runs.
- *   Errors inside the stream must be logged from the stream's onError/onFinish.
+ * - Streaming routes (chat) pass `{ streaming: true }`: errors thrown before the Response are logged
+ *   here, but a returned stream isn't. The route logs its one line when the stream ends (onEnd,
+ *   onAbort or onError), so each request still gets exactly one line.
  * - Next's control-flow throws (redirect, notFound) are rethrown, not turned into a 500.
  */
 export function withRoute<Context>(
   name: string,
   handler: (request: NextRequest, context: Context) => Promise<Response>,
+  options: { streaming?: boolean } = {},
 ): (request: NextRequest, context: Context) => Promise<Response> {
   return async (request, context) => {
     const started = performance.now();
@@ -52,6 +54,7 @@ export function withRoute<Context>(
     const ownerPrefix = request.cookies.get("owner_id")?.value;
     try {
       const response = await handler(request, context);
+      if (options.streaming) return response;
       logOperation({
         route: name,
         ownerPrefix,
