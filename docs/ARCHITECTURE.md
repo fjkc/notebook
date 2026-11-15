@@ -118,14 +118,15 @@ Function `match_chunks(p_notebook_id, p_query_embedding, p_match_count, p_source
 ### Flow
 1. **Create**
    - Text: Server Action inserts a `pending` source with `input_text` and a title (user-supplied or first line, max 80 chars).
-   - URL: Server Action validates the URL (http/https only) and inserts a `pending` source with `url`.
-   - PDF: client calls `POST /api/sources/upload-url`; the server checks size and limits, inserts a `pending` source with `storage_path = {owner_id}/{source_id}.pdf` and returns a signed upload token; the client uploads with `uploadToSignedUrl`.
+   - URL: Server Action checks the link with `parsePublicUrl` (no DNS yet, see "SSRF protection"), the ownership and the source limits, and inserts a `pending` source with `url` and a provisional title (hostname plus path, max 80 chars), replaced by the page's own title after extraction.
+   - PDF: client calls `POST /api/sources/upload-url`; the server checks the file name (`.pdf`), size and limits, inserts a `pending` source with `storage_path = {owner_id}/{source_id}.pdf` and a title from the file name, and returns a signed upload token; the client uploads with `uploadToSignedUrl` and the publishable key. If the upload fails, the client deletes the new source again (`deleteSource`), so no empty `pending` source stays behind; after a successful upload it closes the dialog, refreshes (a route created the source, so nothing revalidated) and starts the process call.
 2. **Process:** the client calls `POST /api/sources/[id]/process`. The handler atomically claims the source with `claim_source(p_id, p_owner_id)` (migration `0002_claim_source.sql`): in one statement it sets `status = 'processing', error = null` where the source is the owner's and `pending`, `failed` or stuck in `processing` for more than 5 minutes, and deletes that source's existing chunks, so a retry never leaves duplicates.
    No row claimed → 409 `ALREADY_PROCESSING` if the source still exists, else 404 `NOT_FOUND`.
-3. **Extract** (`rag/extract.ts`) → array of `{ page: number | null, text: string }`
-   - PDF: download from storage, `unpdf` with per-page text. If total text < 100 chars → `NO_TEXT_FOUND` ("This PDF has no selectable text. Scanned PDFs aren't supported yet.").
-   - URL: `url-guard` check, fetch with 10 s timeout, max 5 MB, `text/html` only, `@mozilla/readability` on a `linkedom` document. Title from readability. Failure → `URL_FETCH_FAILED`.
+3. **Extract** (`rag/extract.ts`) → `Extracted = { pages: { page: number | null; text: string }[]; title?: string; pageCount?: number }`. `markReady` stores `title` (trimmed, max 80) and `pageCount` when present; `char_count` is the length of all extracted text.
+   - PDF: check the path starts with `{owner_id}/`, download from storage (`INGEST_DB_TIMEOUT_MS`). No object (the upload never finished) → `UPLOAD_INCOMPLETE`; over 10 MB → `FILE_TOO_LARGE`. `unpdf`: more than 100 pages (`MAX_PDF_PAGES`) → `LIMIT_REACHED` "PDFs can have up to 100 pages."; then one string per page (`mergePages: false`), page `n` gets `page = n`. Total text < 100 chars (`MIN_PDF_TEXT_CHARS`), or a PDF that can't be parsed (encrypted, corrupt) → `NO_TEXT_FOUND` ("This PDF has no selectable text. Scanned PDFs aren't supported yet."). `pageCount` counts blank pages too.
+   - URL: guarded fetch (`rag/fetch-page.ts`, see "SSRF protection"), `@mozilla/readability` on a `linkedom` document, title from readability. The text is `htmlToText(article.content)` (`rag/html-text.ts`): one walk over the tree in document order that emits every text node once, puts a paragraph break around block elements (`p`, `div`, `section`, `article`, `li`, `h1`–`h6`, `blockquote`, `pre`, `table`, `tr`, `td`, `th`, `dt`, `dd`, `figcaption`) and a newline for `br`, skips `script` and `style`, and collapses runs of breaks, so the chunker sees paragraphs (readability's `textContent` glues them together). No article, or less than 200 chars of text (`MIN_URL_TEXT_CHARS`, an empty or JavaScript-rendered page) → `URL_FETCH_FAILED`. Readability's HTML is never stored or shown.
    - Text: single page with `page = null`.
+   - **Text cap:** URL and PDF text has the pasted-text cap (`MAX_PASTED_TEXT_CHARS`), because the same embedding quota and time budget apply. Over it → `LIMIT_REACHED` ("This page has more than 80,000 characters of text. Paste the part you need instead." / "This PDF has more than 80,000 characters of text. Split it, or paste the part you need."), checked right after extraction, before any embedding.
 4. **Chunk** (`rag/chunk.ts`): each page separately (chunks never cross pages, so page numbers stay exact). Split into paragraphs, then sentences if needed; merge up to ~1,000 chars with ~150 chars overlap; merge a trailing piece under 200 chars into the previous chunk of the same page.
 5. **Embed** (`rag/embed.ts`): `embedMany` in sequential batches of up to 100, `taskType: "RETRIEVAL_DOCUMENT"`, `outputDimensionality: 768`. Insert chunks in batches.
 6. **Summarise:** one Flash-Lite call (`SUMMARY_MODEL`, ~1–2 s, its own quota) → 3–4 sentence summary → `sources.summary`. Best-effort: if it fails (quota, timeout), the failure is logged and the source still becomes `ready` with `summary = null`, since its chunks are stored and usable in answers.
@@ -138,7 +139,9 @@ Any error in steps 3–5 or 7 → `status = 'failed'`, `error` = user-facing mes
 The client doesn't wait for the process call: after a create (whose action revalidates the page, so the `pending` chip appears) or a "Try again", it fires the call and the chip shows "Processing". While any source in the notebook is `pending` or `processing`, the page refreshes every 2 s with `router.refresh()` (`SOURCE_POLL_MS`, paused while the tab is hidden), so a reload mid-processing still resolves. When the call settles, the client refreshes once more; a `NOT_FOUND` answer is ignored, any other error shows a toast.
 
 ### Limits (`backend/src/shared/limits.ts`)
-- PDF max 10 MB and 300 pages
+- PDF max 10 MB (`MAX_PDF_BYTES`) and 100 pages (`MAX_PDF_PAGES`), and at most `MAX_PASTED_TEXT_CHARS` of extracted text. 100 pages (down from 300) because a source must fit the 45 s processing budget and the 60 s `maxDuration`, well below the 5-minute stuck window: within the text cap a source is at most a few embedding batches plus one summary call, and the page limit also bounds parsing work for PDFs with little text per page. Keeping 300 pages would need a 300 s `maxDuration`, which equals the stuck window (a running source could be claimed twice).
+- Web pages: 10 s for the whole fetch (`URL_FETCH_TIMEOUT_MS`), at most 3 redirects (`URL_MAX_REDIRECTS`), at most 5 MB of HTML (`MAX_URL_BYTES`), at least 200 characters of text (`MIN_URL_TEXT_CHARS`); links up to 2,048 characters (`MAX_URL_CHARS`)
+- PDFs need at least 100 characters of text (`MIN_PDF_TEXT_CHARS`)
 - Max 50 notebooks per owner (`MAX_NOTEBOOKS_PER_OWNER`)
 - Max 10 sources per notebook
 - Max 20 new sources per owner per hour
@@ -148,8 +151,12 @@ The client doesn't wait for the process call: after a create (whose action reval
 - Shelf polling every 2 s (`SOURCE_POLL_MS`); stuck after 5 minutes (`STUCK_SOURCE_MS`)
 - Gemini free tier, read from the AI Studio rate-limit page on 2026-11-15: `gemini-3.8-flash` 5 requests/min, 250,000 tokens/min, 20 requests/day; `gemini-embedding-001` 100 requests/min, 30,000 tokens/min, 1,000 requests/day; `gemini-3.5-flash-lite` (summaries) 15 requests/min, 250,000 tokens/min, 500 requests/day. A source costs one embedding call per 100 chunks plus one Flash-Lite summary call (at most ~8,000 input tokens), so summaries are limited by the 500 requests a day, not by tokens.
 
-### SSRF protection (`rag/url-guard.ts`)
-Only `http:`/`https:`, default ports only. Resolve the hostname and reject loopback, private, link-local and metadata ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, ::1, fc00::/7, fe80::/10) and `localhost`. Follow at most 3 redirects, re-checking each hop.
+### SSRF protection (`rag/url-guard.ts`, `rag/fetch-page.ts`)
+- **`parsePublicUrl`** (on create, without DNS, and again before the fetch), in order: max 2,048 chars; parseable, `http:`/`https:` only; no user name or password; no port other than 80/443; not `localhost`/`*.localhost` and not a literal IP that isn't public (also the forms `new URL` normalises, such as `127.1`, `0x7f000001`, `2130706433`). Each failure is `VALIDATION` with its own message (§11).
+- **`isPublicAddress`**: IPv4 is public unless in 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.168.0.0/16, 198.18.0.0/15 or 224.0.0.0/3 and above. IPv6 is public only in global unicast 2000::/3 and not in 2001::/32 (Teredo), 2001:db8::/32 or 2002::/16 (6to4); an IPv4-mapped address (`::ffff:a.b.c.d` or the hex form) is judged by its IPv4 part. Everything else (`::`, `::1`, fc00::/7, fe80::/10, ff00::/8, 64:ff9b::/96 …) is not public.
+- **Pinned lookup:** the fetch uses `node:http`/`node:https` (never the global `fetch`) with `lookup: createGuardedLookup(resolve)`. `resolve` runs `resolve4` and `resolve6` in parallel (`ENODATA`/`ENOTFOUND` for one family is an empty list; any other error fails), and the lookup fails if **any** address isn't public. The socket connects only to an address that was checked, so a DNS answer can't change between check and connect (DNS rebinding). Node skips `lookup` for literal IPs, which `parsePublicUrl` checks itself. Rejected: the global `fetch` with a DNS check before the call (resolved again on connect), and `undici`'s `Agent` (a new dependency).
+- **Redirects:** at most 3, each `Location` resolved against the current URL and run through `resolveRedirect` (`parsePublicUrl`, failing with `URL_FETCH_FAILED`) and the pinned lookup again.
+- **Response:** 10 s in total (`AbortSignal`), only `200` with `text/html` or `application/xhtml+xml`, the body streamed and aborted past 5 MB, decoded with the charset from the header, else a `<meta charset>` in the first 2 KB, else UTF-8. `User-Agent: Notehooked/1.0 (+source reader)`, no cookies, no other headers. Every failure is `URL_FETCH_FAILED` with the cause logged.
 
 ## 7. Chat and citations
 
@@ -202,10 +209,10 @@ Cut with M7 (`docs/PROGRESS.md` → "Decisions log", Scope). Kept as a sketch; d
 |---|---|---|
 | `createNotebook` | none | starts as "Untitled notebook" (max 50 per owner), redirects to the new notebook |
 | `renameNotebook` | `{ id, title }` | |
-| `deleteNotebook` | `{ id }` | the client navigates home; storage files of its sources are removed from M4 on, with PDF uploads |
+| `deleteNotebook` | `{ id }` | the client navigates home; lists its sources' `storage_path`s (owner-scoped) before the delete and removes the files after. A storage error is logged and never fails the delete |
 | `createTextSource` | `{ notebookId, title?, text }` | returns `{ sourceId }`; limits checked after the ownership check. There's no `retrySource`: "Try again" is the process call |
-| `createUrlSource` | `{ notebookId, url }` | returns `{ sourceId }` |
-| `deleteSource` | `{ id }` | removes chunks (cascade) and storage file |
+| `createUrlSource` | `{ notebookId, url }` | returns `{ sourceId }`; `parsePublicUrl` first, then ownership and limits |
+| `deleteSource` | `{ id }` | removes chunks (cascade) and, after the row, the storage file (a storage error is logged, never fails the delete) |
 | `clearChat` | `{ notebookId }` | deletes messages |
 | `deleteNote` | `{ id }` | removes audio file if any |
 
@@ -214,7 +221,7 @@ Cut with M7 (`docs/PROGRESS.md` → "Decisions log", Scope). Kept as a sketch; d
 | Method & path | Body | Response |
 |---|---|---|
 | `GET /api/health` | – | `{ ok, db, timestamp }`: `200` when the database answers, `503` otherwise (no error body) |
-| `POST /api/sources/upload-url` | `{ notebookId, fileName, fileSize }` | `{ sourceId, path, token }` |
+| `POST /api/sources/upload-url` | `{ notebookId, fileName, fileSize }` | `{ sourceId, path, token }`, or the error shape (`400 VALIDATION` "Choose a PDF file.", `FILE_TOO_LARGE`, `LIMIT_REACHED`, `404`) |
 | `POST /api/sources/[id]/process` | – | `200 { status: "ready" }`, or the error shape (`404`, `409 ALREADY_PROCESSING`, `429`, …) |
 | `POST /api/chat` | `{ notebookId, messages, sourceIds? }` | UI message stream |
 | `POST /api/notes` | `{ notebookId, kind }` | `{ note }` |
@@ -231,11 +238,12 @@ Error responses always have the shape `{ error: { code, message } }`.
 | `RATE_LIMITED` | 429 | Lots of requests right now. Try again in a minute. |
 | `NOT_FOUND` | 404 | This notebook or source doesn't exist. |
 | `UNAUTHORIZED` | 401 | Your session has expired. Reload the page. |
-| `VALIDATION` | 400 | (specific message from the zod error) |
+| `VALIDATION` | 400 | (specific message from the zod error; for links: "Links can be up to 2,048 characters.", "Enter a link that starts with http:// or https://.", "Links with a user name or password aren't supported.", "Links with a port number aren't supported.", "That link points to a private address.") |
 | `LIMIT_REACHED` | 400 | (which limit, e.g. "A notebook can have up to 10 sources.") |
 | `FILE_TOO_LARGE` | 400 | PDFs can be up to 10 MB. |
 | `NO_TEXT_FOUND` | 422 | This PDF has no selectable text. Scanned PDFs aren't supported yet. |
 | `URL_FETCH_FAILED` | 422 | We couldn't read that page. Check the link or paste the text instead. |
+| `UPLOAD_INCOMPLETE` | 422 | The upload didn't finish. Delete this source and add the PDF again. |
 | `ALREADY_PROCESSING` | 409 | This source is already being processed. |
 | `INTERNAL` | 500 | Something went wrong on our side. Try again. |
 

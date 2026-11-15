@@ -75,7 +75,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - Source summaries.
 - Sources UI: add dialog (three types), list with status, polling, retry on failed, delete, view summary, limits enforced with clear messages.
 - Stuck `processing` for more than 5 min is treated as failed and retryable.
-- Deleting a notebook removes the PDFs of its sources from storage.
+- Deleting a notebook removes the PDFs of its sources from storage (NB-008, along with deleting a single PDF source).
 - Sample sources in `fixtures/` (short text, public-domain PDF).
 
 **Done when:** on production, a ~50-page PDF, an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
@@ -138,6 +138,8 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - Notebooks are tied to one browser (no accounts).
 - Scanned PDFs without a text layer aren't supported.
 - Gemini free-tier rate limits apply; heavy use shows a "try again" message. Pasted text is capped at 80,000 characters to fit the embedding limit, the chat model allows only 20 requests a day, and source summaries (on a separate Flash-Lite quota of 500 a day) are skipped when that quota runs out.
+- PDFs can have up to 100 pages and 80,000 characters of text; web pages up to 80,000 characters (the pasted-text cap, set by the embedding free tier). Longer documents fail with a message asking to split them or paste the part needed.
+- Web pages that need a login, sit behind a paywall or render their text with JavaScript can't be read; only `text/html` pages up to 5 MB on the default ports.
 - Processing runs in a serverless function without a queue; very large documents may time out.
 - The hourly source limit counts existing sources, so deleting one frees room, and "Try again" isn't limited. Acceptable behind the password gate.
 - No generated notes or audio recaps: cut to keep the core reliable (M6, M7); they are the natural next features.

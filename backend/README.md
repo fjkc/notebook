@@ -36,6 +36,7 @@ backend/
     db/                   typed query helpers: notebooks, sources, chunks, messages, notes
       notebooks.ts        list (with source counts), get, count, insert, rename, delete
       sources.ts          insert, list, get, counts, claim (claim_source RPC), mark ready/failed, delete
+      storage.ts          the private "sources" bucket: signed upload token, download, quiet remove
       chunks.ts           insertMany only, in batches (the documented owner_id exception, see below)
     services/             notebooks, sources, chat, notes, health: one module per area
       notebooks.ts        list, get, create (limit), rename, delete
@@ -47,12 +48,14 @@ backend/
       gemini.ts           provider with the server key, created lazily; AI_MAX_RETRIES
       errors.ts           toAiError(): Gemini 429 → RATE_LIMITED, else INTERNAL (+ test)
     rag/
-      extract.ts          pdf (unpdf) / url (readability + linkedom) / text → pages
+      extract.ts          pdf (unpdf) / url (readability + linkedom) / text → { pages, title?, pageCount? }
+      fetch-page.ts       guarded fetch: node:http(s) with the pinned lookup, redirects, size and type checks
+      html-text.ts        readability HTML → text with paragraph breaks (+ test)
       chunk.ts            + chunk.test.ts
       embed.ts            batched embeddings, 768 dims
       summarize.ts        a source's 3–4 sentence summary
       retrieve.ts         match_chunks wrapper
-      url-guard.ts        SSRF protection + url-guard.test.ts
+      url-guard.ts        SSRF protection: parsePublicUrl, isPublicAddress, guarded lookup (+ test)
     shared/               client-safe, no server-only imports
       index.ts            entry for "@repo/backend/shared"
       limits.ts           all limits (single source of truth)
