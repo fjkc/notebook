@@ -43,7 +43,13 @@ export function SourcePopoverBody({ source, processing, onRetry, onDelete }: Sou
       {source.summary ? (
         <p className="font-reading text-sm leading-relaxed">{source.summary}</p>
       ) : (
-        !failed && <p className="text-sm text-graphite">The summary appears when processing is done.</p>
+        !failed && (
+          <p className="text-sm text-graphite">
+            {source.status === "ready" && !processing
+              ? "No summary for this source. Its passages are still used in answers."
+              : "The summary appears when processing is done."}
+          </p>
+        )
       )}
       {failed && (
         <div className="grid gap-2">

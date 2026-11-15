@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import * as chunksDb from "../db/chunks";
 import * as sources from "../db/sources";
-import { AppError, toUserMessage } from "../errors";
+import { AppError, describeError, toUserMessage } from "../errors";
 import { chunkPages, type PageText } from "../rag/chunk";
 import { embedDocuments } from "../rag/embed";
 import { extractText } from "../rag/extract";
@@ -125,6 +125,19 @@ export async function createTextSource(
   return { sourceId: id, notebookId };
 }
 
+/**
+ * Best-effort summary: a failure (quota, timeout) is logged and the source still becomes ready
+ * without one, because its chunks are already stored and usable in answers (NB-007 Notes).
+ */
+async function trySummary(text: string, signal: AbortSignal): Promise<string | null> {
+  try {
+    return await summarizeSource(text, signal);
+  } catch (error) {
+    console.error("[processSource] summary skipped", JSON.stringify(describeError(error)));
+    return null;
+  }
+}
+
 function extract(source: sources.SourceForProcessing): PageText[] {
   if (source.type === "text" && source.inputText) return extractText(source.inputText);
   throw new Error(`No extractor for source type ${source.type}`);
@@ -167,7 +180,7 @@ export async function processSource(ownerId: string, sourceId: unknown): Promise
     );
 
     const text = pages.map((page) => page.text).join("\n\n");
-    const summary = await summarizeSource(text, budget);
+    const summary = await trySummary(text, budget);
     const pageCount = pages.some((page) => page.page !== null) ? pages.length : null;
     // Not under the budget (own 5 s timeout): an abort after the server committed would turn a finished source into failed.
     const updated = await sources.markReady(ownerId, id, { summary, pageCount, charCount: text.length });

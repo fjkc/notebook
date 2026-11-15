@@ -136,7 +136,8 @@ export async function claim(ownerId: string, id: string): Promise<SourceForProce
 export async function markReady(
   ownerId: string,
   id: string,
-  fields: { summary: string; pageCount: number | null; charCount: number },
+  /** `summary` is null when the summary call failed (best-effort). */
+  fields: { summary: string | null; pageCount: number | null; charCount: number },
 ): Promise<boolean> {
   const { data, error } = await getSupabase()
     .from("sources")
