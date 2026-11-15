@@ -24,6 +24,7 @@ infra/
     migrations/
       0001_init.sql       complete initial schema
       0002_claim_source.sql  claim_source(): atomic claim for processing, deletes old chunks (NB-007)
+      0003_match_chunks_exact.sql  match_chunks: exact per-notebook search instead of the global HNSW index (NB-009)
 ```
 
 ## Topology

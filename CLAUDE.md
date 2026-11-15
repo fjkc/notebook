@@ -17,7 +17,7 @@ Each topic lives in exactly one file. Link to it instead of repeating it.
 | `.claude/` | Workflow tooling: skills (`/spec`, `/implement`, `/review`) and the review agents |
 | `docs/PROGRESS.md` | Roadmap: milestones, their scope and "Done when", decisions log, known limitations |
 | `docs/ARCHITECTURE.md` | System design: infrastructure, data model, pipelines, API surface, errors, prompts |
-| `docs/DESIGN.md` | Design tokens and layout (created in M2) |
+| `docs/DESIGN.md` | Design tokens, layout and names in the UI |
 | `frontend/README.md` | Rules and layout for the Next.js app |
 | `backend/README.md` | Rules and layout for `@repo/backend` (server-only domain logic) |
 | `infra/README.md` | Schema, hosting, env vars, setup runbook |
@@ -36,7 +36,7 @@ Work autonomously within a spec. Ask only when a decision affects scope, design,
 
 ### 1. Own identity, not a copy
 The app is publicly deployed and must not imitate NotebookLM or Google's branding.
-- **Name and logo:** never use "NotebookLM", "Google" or "Gemini" in the app's name, logo, page title or metadata. The name lives only in `APP_NAME` (`frontend/src/lib/config.ts`) and is chosen by the user in M2.
+- **Name and logo:** never use "NotebookLM", "Google" or "Gemini" in the app's name, logo, page title or metadata. The name, Notehooked, lives only in `APP_NAME` (`frontend/src/lib/config.ts`).
 - **Visuals:** no Google Sans / Product Sans, no Material You colour schemes, no Google logo colours, no copied icons, illustrations or screenshots. Don't reproduce NotebookLM's layout, spacing, component shapes or palette. Same functional areas, own arrangement and interaction model.
 - **Copy:** write all UI text from scratch. Don't reuse NotebookLM's wording or feature names ("Studio", "Audio Overview", "Notebook guide" etc.).
 - **Allowed:** the README may state factually that the project is inspired by Google's NotebookLM and uses the Gemini API. No logos, no implied affiliation.

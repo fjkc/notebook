@@ -24,7 +24,7 @@ There are no status fields to keep in sync. To see where things stand, look at t
 - **One spec, one implementation PR.** There are no subtasks. The spec's "Implementation" section has one checkbox with the branch name and the acceptance criteria, and the implementing PR ticks it.
   - The app builds and works after the PR merges.
   - **Size:** if a work package would be too big for one reviewable PR (roughly over 800 changed lines of code and tests, not counting lockfiles, generated files and Markdown), it becomes two specs, each with its own ID, not subtasks.
-  - Specs before NB-004 (NB-001, NB-002, NB-003's original draft) used subtasks `NB-XXX.n`. Their history stays as it is, and a subtask that's still open (NB-002.5) finishes under the old rule.
+  - Specs before NB-004 (NB-001, NB-002, NB-003's original draft) used subtasks `NB-XXX.n`. Their history stays as it is; all of them are done.
 - **Spec PR titles:** a new spec is `docs(NB-XXX): spec for <topic>`, a change to an approved spec is `docs(NB-XXX): spec change: <what>`. Both start with the word "spec", which is how `/review` routes them to the spec-reviewer and how `/implement` tells them from the implementation PR, whose title never starts with "spec".
 
 ## 2. Writing a spec

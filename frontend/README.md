@@ -44,8 +44,6 @@ frontend/
         sources/upload-url/route.ts
         sources/[id]/process/route.ts
         chat/route.ts
-        notes/route.ts
-        notes/audio/route.ts          (stretch)
     components/
       ui/                             shadcn components, restyled to our design
       shell/                          TopBar, Wordmark, ThemeToggle, ErrorView
@@ -59,6 +57,7 @@ frontend/
       action.ts                       ActionResult, runAction(): every Server Action goes through it
       chat.ts                         ChatUIMessage type, chatErrorMessage() for the Ask pane (client-safe)
       use-media-query.ts              useMediaQuery (which Reader sheet to mount), prefersReducedMotion
+      utils.ts                        cn re-export (shadcn's components.json alias points here)
       supabase/browser.ts             publishable key, uploadToSignedUrl only
     proxy.ts                          access gate, then owner cookie (imports @repo/backend/shared and /access)
   vercel.json                         region fra1, daily health cron
@@ -79,7 +78,7 @@ Browser ──► Server Component / Server Action / Route Handler ──► @re
 
 Two entry points of the backend package:
 - `@repo/backend`: server-only (services, DB, AI). Importing it into a Client Component fails the build, and that is intended.
-- `@repo/backend/shared`: client-safe (limits, error codes and messages, `Citation` type, citation parser). Use it from Client Components.
+- `@repo/backend/shared`: client-safe (limits, error codes and messages, `isUuid`, the `NotebookTitle` rule, `Citation` type and citation helpers). Use it from Client Components.
 
 A Server Action should look like this, and no bigger. `runAction` gets the owner, catches and logs everything, and returns an `ActionResult` (data, or a code with a message the user may see):
 
