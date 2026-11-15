@@ -11,7 +11,7 @@ This project is inspired by Google's NotebookLM and uses the Gemini API. It is a
 - **Notebooks:** create, rename and delete them; each one belongs to your browser.
 - **Sources:** add a PDF (up to 10 MB and 100 pages), a web page or pasted text. Each source shows its status while it's processed, gets a short summary, and can be retried or deleted.
 - **Grounded chat:** answers stream in and come only from your sources. If the sources don't cover a question, the answer says so. Answers come in the language you ask in.
-- **Citation hooks:** every claim carries a numbered hook. Pressing it opens the Reader with the source, the page and the highlighted passage, and marks the source on the Shelf.
+- **Citation hooks:** answers cite their passages with numbered hooks. Pressing one opens the Reader with the source, the page and the highlighted passage, and marks the source on the Shelf.
 - **Chat controls:** suggested questions for an empty chat, a choice of which sources answers may use, and "Clear chat".
 - **Everywhere:** light and dark theme, and layouts for desktop, tablet and phone.
 
