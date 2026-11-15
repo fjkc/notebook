@@ -15,7 +15,9 @@ export {
 } from "./services/notebooks";
 export { assertNotebookOwner, assertSourceOwner } from "./services/ownership";
 export {
+  createPdfUpload,
   createTextSource,
+  createUrlSource,
   deleteSource,
   listSources,
   processSource,
