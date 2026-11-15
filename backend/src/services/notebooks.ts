@@ -69,8 +69,8 @@ export async function deleteNotebook(ownerId: string, input: unknown): Promise<v
  *
  * Two refreshes can overlap (sources finishing close together, a delete during processing). The
  * summaries are read again before the write, and a refresh whose set changed meanwhile doesn't
- * write: the refresh started by that change covers the newer set. Unless nothing is stored yet:
- * that refresh may still fail (a 429, the deadline), and some questions beat none.
+ * write: the refresh started by that change covers the newer set. Unless the set only grew and
+ * nothing is stored yet: that refresh may still fail (a 429, the deadline), and some questions beat none.
  */
 export async function refreshSuggestedQuestions(ownerId: string, notebookId: string, signal?: AbortSignal): Promise<void> {
   const summaries = await sources.listReadySummaries(ownerId, notebookId, signal);
@@ -82,6 +82,11 @@ export async function refreshSuggestedQuestions(ownerId: string, notebookId: str
   if (questions.length === 0) return;
   const current = await sources.listReadySummaries(ownerId, notebookId, signal);
   const changed = current.length !== summaries.length || current.some((summary, i) => summary !== summaries[i]);
-  if (changed && (await notebooks.getSuggestedQuestions(ownerId, notebookId, signal)).length > 0) return;
+  if (changed) {
+    // Only a set that purely grew may still write (when nothing is stored): after a delete, these
+    // questions could be about the deleted source, and the delete's own refresh owns that state.
+    const onlyGrew = current.length > 0 && summaries.every((summary) => current.includes(summary));
+    if (!onlyGrew || (await notebooks.getSuggestedQuestions(ownerId, notebookId, signal)).length > 0) return;
+  }
   await notebooks.setSuggestedQuestions(ownerId, notebookId, questions, signal);
 }

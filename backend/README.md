@@ -34,13 +34,13 @@ backend/
     access/               password gate: env, session tokens, password check, safe redirect
       index.ts            entry for "@repo/backend/access" (not server-only, the proxy imports it)
     db/                   typed query helpers: notebooks, sources, chunks, messages, notes
-      notebooks.ts        list (with source counts), get, count, insert, rename, delete, setSuggestedQuestions
+      notebooks.ts        list (with source counts), get, count, insert, rename, delete, get/setSuggestedQuestions
       sources.ts          insert, list, get, counts, claim (claim_source RPC), mark ready/failed, delete, listReadySummaries
       storage.ts          the private "sources" bucket: signed upload token, download, quiet remove
       chunks.ts           insertMany in batches, matchChunks (match_chunks RPC); the documented owner_id exception, see below
       messages.ts         chat messages: insert, listRecent, listAll, countUserMessagesSince, removeByNotebook
     services/             notebooks, sources, chat, notes, health: one module per area
-      notebooks.ts        list, get, create (limit), rename, delete, refreshSuggestedQuestions
+      notebooks.ts        list, get, create (limit), rename, delete, refreshSuggestedQuestions (+ test)
       sources.ts          list (stuck → failed), create text (limits), process (pipeline), delete; both refresh the suggested questions (+ test)
       ownership.ts        assertNotebookOwner, assertSourceOwner (+ test)
       chat.ts             startChat (validate, own, throttle, history, store question, retrieve), saveAnswer, getHistory, clearChat
