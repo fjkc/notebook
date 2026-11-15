@@ -60,7 +60,8 @@ git switch -c docs/NB-XXX-spec
 
 ## 6. Report and stop
 
-In **one** message: the PR link, the size and any user steps in a line or two, and the open questions (numbered, each answerable in a word or a choice). Then stop.
-- Before the report, run the two automatic review rounds on the spec PR (`WORKFLOW.md` §5 "Automatic review rounds"); fixes stay inside the spec, and questions only the user can decide go into the report.
+First run the two automatic review rounds on the spec PR, exactly as `WORKFLOW.md` §5 "Automatic review rounds" describes (fixes stay inside the spec).
+
+Then, in **one** message: the PR link, the size and any user steps in a line or two, the review verdicts, what was fixed and every won't-fix decision, and the open questions (numbered, each answerable in a word or a choice). Then stop.
 - Don't start implementing. That needs the user to ask.
 - When the user answers or comments, push fix commits to the same branch, update the PR description, and empty "Open questions" as they get answered.

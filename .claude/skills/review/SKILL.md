@@ -21,7 +21,7 @@ git status --porcelain -- .claude CLAUDE.md   # must print nothing (catches untr
 ```
 - **Both pass** (the tooling equals the base branch, nothing untracked): continue.
 - **Otherwise: stop.** Tell the user the local review tooling differs from `<base>`, usually because a PR that changes it is checked out, and ask them to switch to `<base>` or explicitly confirm.
-- **Automatic review rounds** (`WORKFLOW.md` §5): instead of asking, switch to an up-to-date `<base>` (the working tree must be clean), run the guard again, and review from there with `local_head_matches: false`. Switch back to the PR branch only after the review is posted.
+- **Automatic review rounds** (`WORKFLOW.md` §5): instead of asking, switch to an up-to-date `<base>`, run the guard again, and review from there with `local_head_matches: false`. Switch back to the PR branch only after the review is posted. If the working tree isn't clean before the switch, or the guard still fails on `<base>`, stop and ask the user as above. Never stash, reset or clean files to make it pass.
 - **Bootstrap exception:** if `<base>` has no `.claude/hooks/review-readonly.py` yet (the PR that introduces the tooling), continue, and say so in the summary.
 
 ## 1. Resolve the PR
