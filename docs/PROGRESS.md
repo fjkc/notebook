@@ -144,4 +144,5 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - Processing runs in a serverless function without a queue; very large documents may time out.
 - "Try again" on a failed source isn't throttled, so a web page source can be fetched again on every retry (public addresses only). Acceptable behind the password gate.
 - The hourly source limit counts existing sources, so deleting one frees room, and "Try again" isn't limited. Acceptable behind the password gate.
+- "Clear chat" deletes the messages the per-minute chat throttle counts, so clearing resets it. Acceptable behind the password gate, and Gemini's own rate limit still caps use.
 - No generated notes or audio recaps: cut to keep the core reliable (M6, M7); they are the natural next features.

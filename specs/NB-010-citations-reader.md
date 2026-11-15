@@ -93,7 +93,7 @@ Every citation in an answer is a hook. Pressing it opens the Reader with the sou
 
 ## Implementation
 
-- [ ] **Implemented** (`feat/NB-010-citations-reader`)
+- [x] **Implemented** (`feat/NB-010-citations-reader`)
   - No user steps before merge. After merge: the production check below; then, on request, the release step in R10.
   - Acceptance:
     - CI passes, including the R5 cleaning test.
