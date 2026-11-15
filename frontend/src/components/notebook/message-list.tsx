@@ -1,9 +1,12 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
+import type { Citation } from "@repo/backend/shared";
 import { messageText, type ChatUIMessage } from "@/lib/chat";
 import { Button } from "@/components/ui/button";
 import { AnswerMarkdown } from "./answer-markdown";
+
+const NO_CITATIONS: Citation[] = [];
 
 /** Distance from the bottom, in px, that still counts as "at the bottom" for following the stream. */
 const BOTTOM_SLACK_PX = 48;
@@ -56,10 +59,9 @@ export function MessageList({ messages, waiting, error, onRetry }: MessageListPr
             );
           }
           if (!text) return null;
-          const validNumbers = (message.metadata?.citations ?? []).map((c) => c.n);
           return (
             <li key={message.id} className="font-reading rounded-lg bg-paper text-[1.0625rem] leading-relaxed">
-              <AnswerMarkdown text={text} validNumbers={validNumbers} />
+              <AnswerMarkdown messageId={message.id} text={text} citations={message.metadata?.citations ?? NO_CITATIONS} />
             </li>
           );
         })}

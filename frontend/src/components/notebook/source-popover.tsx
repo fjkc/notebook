@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckIcon } from "lucide-react";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import type { SourceListItem } from "@repo/backend";
@@ -13,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 /** Shown on the chip and in the popover. */
 export const TYPE_LABEL: Record<SourceListItem["type"], string> = { text: "Text", url: "Web page", pdf: "PDF" };
@@ -46,13 +48,24 @@ type SourcePopoverBodyProps = {
   source: SourceListItem;
   /** True while this source's process call runs, before a refresh shows it. */
   processing: boolean;
+  /** Whether this source is used in answers (NB-010 R7); the toggle shows only for ready sources. */
+  usedInAnswers: boolean;
+  onToggleUse: () => void;
   onRetry: () => void;
   onDelete: () => void;
 };
 
 /** What the popover of a chip shows (NB-007 R14): size, summary or error, retry and delete. */
-export function SourcePopoverBody({ source, processing, onRetry, onDelete }: SourcePopoverBodyProps) {
+export function SourcePopoverBody({
+  source,
+  processing,
+  usedInAnswers,
+  onToggleUse,
+  onRetry,
+  onDelete,
+}: SourcePopoverBodyProps) {
   const failed = source.status === "failed" && !processing;
+  const ready = source.status === "ready" && !processing;
   return (
     <div className="grid gap-3">
       <div className="grid gap-1">
@@ -77,6 +90,27 @@ export function SourcePopoverBody({ source, processing, onRetry, onDelete }: Sou
             Try again
           </Button>
         </div>
+      )}
+      {ready && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-pressed={usedInAnswers}
+          onClick={onToggleUse}
+          className="justify-self-start"
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "flex size-3.5 items-center justify-center rounded-[3px] border",
+              usedInAnswers ? "border-ink bg-ink text-paper" : "border-edge",
+            )}
+          >
+            {usedInAnswers && <CheckIcon className="size-3" />}
+          </span>
+          Use in answers
+        </Button>
       )}
       <Button type="button" variant="ghost" size="sm" onClick={onDelete} className="justify-self-start text-danger">
         Delete source

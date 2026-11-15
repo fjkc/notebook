@@ -10,8 +10,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 const formatCount = (n: number) => n.toLocaleString("en-US");
 
 type AskInputProps = {
-  /** No ready source yet: the input is read-only with a tooltip (NB-006 R12). */
-  disabled: boolean;
+  /**
+   * Why the input can't be used: no ready source yet (NB-006 R12) or every ready source excluded
+   * (NB-010 R7). It's then read-only with this text as its tooltip. Null when it can be used.
+   */
+  disabledReason: string | null;
   /** A request is running: typing stays possible, sending doesn't, and "Stop" shows. */
   busy: boolean;
   onSend: (text: string) => void;
@@ -19,7 +22,8 @@ type AskInputProps = {
 };
 
 /** The question box (NB-009 R12): Enter sends, Shift+Enter adds a line, a counter near the limit. */
-export function AskInput({ disabled, busy, onSend, onStop }: AskInputProps) {
+export function AskInput({ disabledReason, busy, onSend, onStop }: AskInputProps) {
+  const disabled = disabledReason !== null;
   const [value, setValue] = useState("");
   const counterId = useId();
   const tooLong = value.length > MAX_QUESTION_CHARS;
@@ -66,7 +70,7 @@ export function AskInput({ disabled, busy, onSend, onStop }: AskInputProps) {
         <Tooltip>
           {/* Read-only and aria-disabled: it stays focusable for the tooltip. */}
           <TooltipTrigger asChild>{textarea}</TooltipTrigger>
-          <TooltipContent>Add a source first</TooltipContent>
+          <TooltipContent>{disabledReason}</TooltipContent>
         </Tooltip>
       ) : (
         textarea
