@@ -4,5 +4,14 @@ import "server-only";
 export { AppError, describeError, toErrorBody, toUserMessage, type ErrorSummary } from "./errors";
 export { logOperation, type LogFields } from "./log";
 export { checkDatabase } from "./services/health";
+export {
+  createNotebook,
+  deleteNotebook,
+  getNotebook,
+  listNotebooks,
+  renameNotebook,
+  type Notebook,
+  type NotebookListItem,
+} from "./services/notebooks";
 export { assertNotebookOwner } from "./services/ownership";
 export * from "./shared";

@@ -6,6 +6,9 @@ export const MAX_PDF_BYTES = 10 * 1024 * 1024;
 /** Most pages a PDF may have. */
 export const MAX_PDF_PAGES = 300;
 
+/** Most notebooks one owner may have. */
+export const MAX_NOTEBOOKS_PER_OWNER = 50;
+
 /** Most sources one notebook may hold. */
 export const MAX_SOURCES_PER_NOTEBOOK = 10;
 
