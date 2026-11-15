@@ -14,7 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const TYPE_LABEL: Record<SourceListItem["type"], string> = { text: "Text", url: "Web page", pdf: "PDF" };
+/** Shown on the chip and in the popover. */
+export const TYPE_LABEL: Record<SourceListItem["type"], string> = { text: "Text", url: "Web page", pdf: "PDF" };
 
 /** "Text · 12,400 characters"; just the type while the size isn't known yet. */
 export function sourceMeta(source: SourceListItem): string {

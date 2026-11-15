@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STUCK_SOURCE_MS } from "../shared/limits";
-import { effectiveStatus, textTitle } from "./sources";
+import { CLOCK_SKEW_MARGIN_MS, effectiveStatus, textTitle } from "./sources";
 
 describe("textTitle", () => {
   it("uses a plain first line", () => {
@@ -46,7 +46,9 @@ describe("effectiveStatus", () => {
   });
 
   it.each(["pending", "processing"] as const)("shows a stuck %s source as failed", (status) => {
-    expect(effectiveStatus(row(status, STUCK_SOURCE_MS + 1_000), now)).toMatchObject({
+    // Within the clock-skew margin it still shows as in flight; past it, as failed.
+    expect(effectiveStatus(row(status, STUCK_SOURCE_MS + 1_000), now).status).toBe(status);
+    expect(effectiveStatus(row(status, STUCK_SOURCE_MS + CLOCK_SKEW_MARGIN_MS + 1_000), now)).toMatchObject({
       status: "failed",
       error: "Processing timed out.",
     });

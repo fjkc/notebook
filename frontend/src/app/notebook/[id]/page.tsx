@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { AppError, getNotebook, listSources, type Notebook } from "@repo/backend";
+import { AppError, getNotebook, listSources, type Notebook, type SourceListItem } from "@repo/backend";
 import { NotebookLayout } from "@/components/notebook/notebook-layout";
 import { NotebookMenu } from "@/components/notebook/notebook-menu";
 import { TopBar } from "@/components/shell/top-bar";
 import { APP_NAME } from "@/lib/config";
+import { toLoggedErrorBody } from "@/lib/http";
 import { getOwnerId } from "@/lib/owner";
 
 /** The owner's notebook, or null for a malformed, unknown or foreign ID. Deduplicated per request. */
@@ -29,8 +30,15 @@ export async function generateMetadata({ params }: PageProps<"/notebook/[id]">):
 export default async function NotebookPage({ params }: PageProps<"/notebook/[id]">) {
   const notebook = await loadNotebook((await params).id);
   if (!notebook) notFound();
-  // Polled with router.refresh() while a source is processing (NB-007 R14).
-  const sources = await listSources(await getOwnerId(), notebook.id);
+  // Polled with router.refresh() while a source is processing (NB-007 R14). A failed load must not
+  // swap the whole notebook for the error page mid-poll: the Shelf shows it inline and keeps polling.
+  let sources: SourceListItem[] | null = null;
+  try {
+    sources = await listSources(await getOwnerId(), notebook.id);
+  } catch (error) {
+    if (error instanceof AppError && error.code === "NOT_FOUND") notFound(); // deleted meanwhile
+    toLoggedErrorBody(error, "notebookPage.listSources");
+  }
 
   return (
     <div className="flex h-dvh flex-col">

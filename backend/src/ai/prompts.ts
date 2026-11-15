@@ -4,8 +4,8 @@ import { SUMMARY_INPUT_CHARS } from "../shared/limits";
 
 /** Prompt for a source's 3–4 sentence summary, from its first SUMMARY_INPUT_CHARS characters. */
 export function sourceSummaryPrompt(text: string): string {
-  // A closing tag inside the text must not end the data block early.
-  const excerpt = text.slice(0, SUMMARY_INPUT_CHARS).replaceAll("</document>", "</ document>");
+  // A closing tag inside the text (any case or spacing) must not end the data block early.
+  const excerpt = text.slice(0, SUMMARY_INPUT_CHARS).replace(/<\s*\/\s*document\s*>/gi, "&lt;/document&gt;");
   return [
     "Summarise the document below in 3–4 sentences for someone deciding whether it's relevant to their research.",
     "Plain language, no preamble, no headings. Write in the document's language.",

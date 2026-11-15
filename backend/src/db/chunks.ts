@@ -38,7 +38,8 @@ export async function insertMany(rows: ChunkRow[], signal?: AbortSignal): Promis
       .from("chunks")
       .insert(batch)
       .abortSignal(signal ? AbortSignal.any([signal, timeout]) : timeout);
-    if (error?.code === FOREIGN_KEY_VIOLATION) throw new AppError("NOT_FOUND", { cause: error });
+    // No cause: an expected outcome (deleted mid-run), so nothing gets logged as an error.
+    if (error?.code === FOREIGN_KEY_VIOLATION) throw new AppError("NOT_FOUND");
     if (error) throw new Error(`chunks.insertMany failed: ${error.code || "unknown"}`, { cause: error });
   }
 }

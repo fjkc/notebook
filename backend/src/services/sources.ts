@@ -27,6 +27,11 @@ export type SourceListItem = Pick<
 >;
 
 const STUCK_MESSAGE = "Processing timed out.";
+/**
+ * Shown as stuck a little after claim_source accepts it: effectiveStatus uses this server's clock,
+ * the claim uses Postgres now(), so a small skew must not offer a "Try again" that gets a 409.
+ */
+export const CLOCK_SKEW_MARGIN_MS = 30_000;
 const HOUR_MS = 60 * 60 * 1000;
 const formatCount = (n: number) => n.toLocaleString("en-US");
 
@@ -48,7 +53,7 @@ const CreateTextSourceInput = z.object({
 const DeleteSourceInput = z.object({ id: z.string() });
 
 /**
- * A pending or processing source whose updated_at is more than STUCK_SOURCE_MS old is shown as
+ * A pending or processing source whose updated_at is more than STUCK_SOURCE_MS (plus a clock-skew margin) old is shown as
  * failed with "Processing timed out." Computed on read, never written; claim_source accepts it.
  */
 export function effectiveStatus<T extends Pick<sources.SourceRow, "status" | "error" | "updatedAt">>(
@@ -56,7 +61,7 @@ export function effectiveStatus<T extends Pick<sources.SourceRow, "status" | "er
   now: number,
 ): T {
   const inFlight = row.status === "pending" || row.status === "processing";
-  if (inFlight && now - Date.parse(row.updatedAt) > STUCK_SOURCE_MS) {
+  if (inFlight && now - Date.parse(row.updatedAt) > STUCK_SOURCE_MS + CLOCK_SKEW_MARGIN_MS) {
     return { ...row, status: "failed", error: STUCK_MESSAGE };
   }
   return row;
@@ -164,12 +169,14 @@ export async function processSource(ownerId: string, sourceId: unknown): Promise
     const text = pages.map((page) => page.text).join("\n\n");
     const summary = await summarizeSource(text, budget);
     const pageCount = pages.some((page) => page.page !== null) ? pages.length : null;
-    const updated = await sources.markReady(ownerId, id, { summary, pageCount, charCount: text.length }, budget);
+    // Not under the budget: an abort after the server committed would turn a finished source into failed.
+    const updated = await sources.markReady(ownerId, id, { summary, pageCount, charCount: text.length });
     if (!updated) throw new AppError("NOT_FOUND");
     return { status: "ready" };
   } catch (error) {
     if (error instanceof AppError && error.code === "NOT_FOUND") throw error;
     const message = error instanceof AppError ? toUserMessage(error) : ERROR_CODES.INTERNAL.message;
+    // No row updated: deleted meanwhile, or markReady committed after all. Either way the client ignores NOT_FOUND.
     if (!(await sources.markFailed(ownerId, id, message))) throw new AppError("NOT_FOUND");
     throw error;
   }

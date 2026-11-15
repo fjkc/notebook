@@ -147,5 +147,7 @@ Deviations found during implementation, one line each.
 - Title over 80 characters gets the message "Titles can be up to 80 characters." (the spec gave none).
 - The chip shows "Processing" in place of the type while pending or processing, and a "Try again" chip shows processing from the click until the call settles, so it doesn't sit on "failed" until the claim shows up in a refresh.
 - `components/notebook/process-source.ts` holds the client's fire-and-forget process call, shared by the add form and the chip.
+- Review round 1: the Shelf shows "Couldn't load your sources. Trying again…" and keeps polling when listing sources fails, instead of the notebook's error page (a failed poll refresh would otherwise replace the whole screen).
+- Review round 1: a source shows as stuck 30 s after the claim would accept it (clock-skew margin between the server and Postgres), `markReady` runs outside the budget with the default timeout, and `markFailed` only updates a `processing` row, so a source that finished is never marked failed.
 - Follow-up for NB-008: at 30k embedding tokens/min, a PDF can carry about as much text as an 80,000-character paste, so `MAX_PDF_PAGES` must drop far below 300 (roughly 25–30 text-heavy pages); measure it there.
 - Follow-up before the demo: 20 Flash requests/day covers summaries and chat answers together; decide on a fix (e.g. a paid tier or another model) with NB-009.

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { MAX_PASTED_TEXT_CHARS, MAX_SOURCE_TITLE_CHARS } from "@repo/backend/shared";
+import { ERROR_CODES, MAX_PASTED_TEXT_CHARS, MAX_SOURCE_TITLE_CHARS } from "@repo/backend/shared";
 import { createTextSource } from "@/app/notebook/[id]/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +48,15 @@ export function TextSourceForm({ notebookId, onPendingChange, onDone }: TextSour
 
     onPendingChange(true);
     startTransition(async () => {
-      const result = await createTextSource({ notebookId, title: title.trim() || undefined, text });
+      let result: Awaited<ReturnType<typeof createTextSource>>;
+      try {
+        result = await createTextSource({ notebookId, title: title.trim() || undefined, text });
+      } catch {
+        // The call itself failed (network, or an older page after a deploy). Keep the text and say so.
+        onPendingChange(false);
+        toast.error(ERROR_CODES.INTERNAL.message);
+        return;
+      }
       onPendingChange(false);
       if (!result.ok) {
         if (result.error.code === "VALIDATION" || result.error.code === "LIMIT_REACHED") {

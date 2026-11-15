@@ -7,16 +7,22 @@ import { SourceChip } from "./source-chip";
 import { SourcePoller } from "./source-poller";
 
 const EMPTY_COPY = "No sources yet. Add a PDF, a web page or some text to start.";
+const LOAD_FAILED_COPY = "Couldn't load your sources. Trying again…";
 
-type ShelfProps = { notebookId: string; sources: SourceListItem[] };
+/** `sources` is null when loading them failed; the Shelf then says so and keeps polling. */
+type ShelfProps = { notebookId: string; sources: SourceListItem[] | null };
 
 /**
  * The Shelf (DESIGN.md → "Layout", NB-007 R14): a strip of source chips under the top bar from
  * 640 px, and below that a "Sources (n)" button that opens the same chips as a bottom sheet.
  */
-export function Shelf({ notebookId, sources }: ShelfProps) {
+export function Shelf({ notebookId, sources: loaded }: ShelfProps) {
+  const sources = loaded ?? [];
+  // Unknown after a failed load; the server still enforces the limit.
   const atLimit = sources.length >= MAX_SOURCES_PER_NOTEBOOK;
-  const inFlight = sources.some((source) => source.status === "pending" || source.status === "processing");
+  const inFlight =
+    loaded === null || sources.some((source) => source.status === "pending" || source.status === "processing");
+  const emptyCopy = loaded === null ? LOAD_FAILED_COPY : EMPTY_COPY;
 
   return (
     <>
@@ -26,7 +32,7 @@ export function Shelf({ notebookId, sources }: ShelfProps) {
         <div className="flex items-center gap-4 overflow-x-auto px-4 py-3">
           <h2 className="shrink-0 text-sm font-medium">Shelf</h2>
           {sources.length === 0 ? (
-            <p className="min-w-0 flex-1 text-sm text-graphite">{EMPTY_COPY}</p>
+            <p className="min-w-0 flex-1 text-sm text-graphite">{emptyCopy}</p>
           ) : (
             <ul className="flex min-w-0 items-center gap-2">
               {sources.map((source) => (
@@ -44,14 +50,14 @@ export function Shelf({ notebookId, sources }: ShelfProps) {
         <Sheet>
           <SheetTrigger asChild>
             <Button type="button" variant="outline" size="sm">
-              Sources ({sources.length})
+              {loaded === null ? "Sources" : `Sources (${sources.length})`}
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="max-h-[85dvh] rounded-t-lg">
             <SheetHeader>
               <SheetTitle>Shelf</SheetTitle>
               <SheetDescription className={sources.length > 0 ? "sr-only" : undefined}>
-                {sources.length > 0 ? `${sources.length} of ${MAX_SOURCES_PER_NOTEBOOK} sources` : EMPTY_COPY}
+                {sources.length > 0 ? `${sources.length} of ${MAX_SOURCES_PER_NOTEBOOK} sources` : emptyCopy}
               </SheetDescription>
             </SheetHeader>
             <div className="flex min-h-0 flex-col gap-2 overflow-y-auto px-4 pb-6">

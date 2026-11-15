@@ -8,12 +8,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { processInBackground } from "./process-source";
-import { DeleteSourceDialog, SourcePopoverBody } from "./source-popover";
+import { DeleteSourceDialog, SourcePopoverBody, TYPE_LABEL } from "./source-popover";
 
 type ChipStatus = "processing" | "ready" | "failed";
 
 const STATUS_LABEL: Record<ChipStatus, string> = { processing: "processing", ready: "ready", failed: "failed" };
-const TYPE_SHORT: Record<SourceListItem["type"], string> = { text: "Text", url: "Web page", pdf: "PDF" };
 
 function StatusDot({ status }: { status: ChipStatus }) {
   if (status === "processing") {
@@ -81,7 +80,7 @@ export function SourceChip({ source, className }: SourceChipProps) {
                 <StatusDot status={status} />
                 <span className="min-w-0 truncate">{source.title}</span>
                 <span className="shrink-0 text-xs text-graphite">
-                  {status === "processing" ? "Processing" : TYPE_SHORT[source.type]}
+                  {status === "processing" ? "Processing" : TYPE_LABEL[source.type]}
                 </span>
               </button>
             </PopoverTrigger>
