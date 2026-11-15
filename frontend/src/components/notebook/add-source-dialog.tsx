@@ -7,15 +7,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { PdfSourceForm } from "./pdf-source-form";
 import { TextSourceForm } from "./text-source-form";
+import { UrlSourceForm } from "./url-source-form";
 
 export const SOURCE_LIMIT_MESSAGE = `A notebook can have up to ${MAX_SOURCES_PER_NOTEBOOK} sources.`;
 
 type AddSourceDialogProps = { notebookId: string; atLimit: boolean; className?: string };
 
 /**
- * "Add source" at the end of the Shelf (NB-007 R14): a dialog with one tab per source type
- * (NB-008 adds web page and PDF). At the limit the button stays focusable with an explanation.
+ * "Add source" at the end of the Shelf (NB-007 R14): a dialog with one tab per source type, PDF, web
+ * page and pasted text (NB-008 R13). At the limit the button stays focusable with an explanation.
  */
 export function AddSourceDialog({ notebookId, atLimit, className }: AddSourceDialogProps) {
   const [open, setOpen] = useState(false);
@@ -52,10 +54,24 @@ export function AddSourceDialog({ notebookId, atLimit, className }: AddSourceDia
           <DialogTitle>Add source</DialogTitle>
           <DialogDescription>Answers in this notebook only use the sources you add.</DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="text">
+        <Tabs defaultValue="pdf" className="min-w-0">
           <TabsList>
-            <TabsTrigger value="text">Paste text</TabsTrigger>
+            <TabsTrigger value="pdf" disabled={pending}>
+              PDF
+            </TabsTrigger>
+            <TabsTrigger value="url" disabled={pending}>
+              Web page
+            </TabsTrigger>
+            <TabsTrigger value="text" disabled={pending}>
+              Paste text
+            </TabsTrigger>
           </TabsList>
+          <TabsContent value="pdf" className="pt-2">
+            <PdfSourceForm notebookId={notebookId} onPendingChange={setPending} onDone={() => setOpen(false)} />
+          </TabsContent>
+          <TabsContent value="url" className="pt-2">
+            <UrlSourceForm notebookId={notebookId} onPendingChange={setPending} onDone={() => setOpen(false)} />
+          </TabsContent>
           <TabsContent value="text" className="pt-2">
             <TextSourceForm notebookId={notebookId} onPendingChange={setPending} onDone={() => setOpen(false)} />
           </TabsContent>

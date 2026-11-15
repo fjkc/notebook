@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   createTextSource as createText,
+  createUrlSource as createUrl,
   deleteNotebook as remove,
   deleteSource as removeSource,
   renameNotebook as rename,
@@ -43,7 +44,15 @@ export async function createTextSource(input: {
   return { ok: true, data: { sourceId: result.data.sourceId } };
 }
 
-/** Deletes a source in any status; its chunks go with it. */
+/** Adds a pending web page source; the client then calls the process route (NB-008 R7). */
+export async function createUrlSource(input: { notebookId: string; url: string }): Promise<ActionResult<{ sourceId: string }>> {
+  const result = await runAction("createUrlSource", (ownerId) => createUrl(ownerId, input));
+  if (!result.ok) return result;
+  revalidatePath(`/notebook/${result.data.notebookId}`);
+  return { ok: true, data: { sourceId: result.data.sourceId } };
+}
+
+/** Deletes a source in any status; its chunks and its PDF file go with it. */
 export async function deleteSource(input: { id: string }): Promise<ActionResult<null>> {
   const result = await runAction("deleteSource", (ownerId) => removeSource(ownerId, input));
   if (!result.ok) return result;

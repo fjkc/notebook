@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { processInBackground } from "./process-source";
-import { DeleteSourceDialog, SourcePopoverBody, TYPE_LABEL } from "./source-popover";
+import { chipLabel, DeleteSourceDialog, SourcePopoverBody } from "./source-popover";
 
 type ChipStatus = "processing" | "ready" | "failed";
 
@@ -80,7 +80,7 @@ export function SourceChip({ source, className }: SourceChipProps) {
                 <StatusDot status={status} />
                 <span className="min-w-0 truncate">{source.title}</span>
                 <span className="shrink-0 text-xs text-graphite">
-                  {status === "processing" ? "Processing" : TYPE_LABEL[source.type]}
+                  {status === "processing" ? "Processing" : chipLabel(source)}
                 </span>
               </button>
             </PopoverTrigger>

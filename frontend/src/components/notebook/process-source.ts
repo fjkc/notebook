@@ -3,7 +3,7 @@
 import { toast } from "sonner";
 import { ERROR_CODES, type ErrorBody } from "@repo/backend/shared";
 
-function isErrorBody(value: unknown): value is ErrorBody {
+export function isErrorBody(value: unknown): value is ErrorBody {
   const error = (value as ErrorBody | null)?.error;
   return typeof error?.code === "string" && typeof error.message === "string";
 }
