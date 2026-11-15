@@ -51,6 +51,12 @@ describe("parsePublicUrl", () => {
     expect(toUserMessage(error)).toBe(message);
   });
 
+  it("checks the length of the normalised link too", () => {
+    // 400 Cyrillic characters: 420 as typed, about 2,420 once percent-encoded.
+    const error = errorOf(() => parsePublicUrl(`https://example.com/${"я".repeat(400)}`));
+    expect(toUserMessage(error)).toBe(URL_MESSAGES.tooLong);
+  });
+
   it("accepts a link of exactly 2,048 characters", () => {
     const link = `https://example.com/${"a".repeat(2048 - 20)}`;
     expect(link).toHaveLength(2048);

@@ -135,7 +135,7 @@ Users can add a web article by its link and upload a PDF of up to 10 MB and 100 
       - Deleting a PDF source and deleting a notebook with a PDF remove the files from the `sources` bucket (Storage browser).
       - The dialog's tabs work by keyboard; at 360 px the dialog fits without horizontal scroll.
     - Docs updated as in R15.
-    - **After merge, on production (M4 "Done when"):** a ~50-page PDF, an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
+    - **After merge, on production (M4 "Done when"):** the 32-page fixture PDF, an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
 
 ## Open questions
 None. Decided by the user (2026-11-14): the PDF limit is 100 pages plus the 200,000-character text cap (R6a, R10), and the fixture PDF is a public-domain US federal government publication picked during implementation (R14).
@@ -148,3 +148,5 @@ Deviations found during implementation, one line each.
 - `createResolver(resolve4, resolve6)` lives in `url-guard.ts` (not `fetch-page.ts`) so the ENODATA/ENOTFOUND handling is unit-tested without network; `fetch-page.ts` only wires in `dns.promises`.
 - Storage access is in a new `db/storage.ts` (signed upload token, download, quiet remove), not listed in "Files".
 - The dialog's tabs are disabled while a form is pending, so switching tabs can't hide a running upload.
+- Review round 1: the fetch also sends `Accept-Encoding: identity` and fails on any other `Content-Encoding` (R3 said "no other headers"), because without it a server may send gzip, which we don't decompress.
+- Review round 1: control characters (e.g. U+0000 from some PDF fonts, which Postgres rejects) are stripped from extracted text in `processSource`; PDF.js load or runtime failures stay `INTERNAL` and only its document errors map to `NO_TEXT_FOUND`; the link length is checked on the normalised href too; the client cuts long PDF file names to 200 characters and always sends a `.pdf` name.

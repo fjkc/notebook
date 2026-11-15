@@ -100,6 +100,8 @@ export function parsePublicUrl(input: string): URL {
     throw new AppError("VALIDATION", URL_MESSAGES.scheme);
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") throw new AppError("VALIDATION", URL_MESSAGES.scheme);
+  // The stored link is the normalised href (non-ASCII percent-encoded), so it must fit too.
+  if (url.href.length > MAX_URL_CHARS) throw new AppError("VALIDATION", URL_MESSAGES.tooLong);
   if (url.username || url.password) throw new AppError("VALIDATION", URL_MESSAGES.credentials);
   // `new URL` drops the scheme's default port, so any port left is a non-default one.
   if (url.port && url.port !== "80" && url.port !== "443") throw new AppError("VALIDATION", URL_MESSAGES.port);

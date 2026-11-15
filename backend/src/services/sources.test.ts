@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STUCK_SOURCE_MS } from "../shared/limits";
-import { CLOCK_SKEW_MARGIN_MS, effectiveStatus, pdfTitle, textTitle, urlTitle } from "./sources";
+import { CLOCK_SKEW_MARGIN_MS, effectiveStatus, pdfTitle, stripControlChars, textTitle, urlTitle } from "./sources";
 
 describe("textTitle", () => {
   it("uses a plain first line", () => {
@@ -84,5 +84,11 @@ describe("pdfTitle", () => {
 
   it("cuts to 80 characters", () => {
     expect(pdfTitle(`${"r".repeat(120)}.pdf`)).toHaveLength(80);
+  });
+});
+
+describe("stripControlChars", () => {
+  it("removes NUL and other control characters but keeps tabs and line breaks", () => {
+    expect(stripControlChars("a\u0000b\u0007c\td\ne\r\nf\u007f")).toBe("abc\td\ne\r\nf");
   });
 });

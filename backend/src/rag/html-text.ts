@@ -8,6 +8,25 @@ const BLOCK_TAGS = new Set([
 ]);
 const SKIPPED_TAGS = new Set(["SCRIPT", "STYLE", "TEMPLATE", "NOSCRIPT"]);
 
+const META_SNIFF_BYTES = 2_048;
+
+function decoderFor(label: string | undefined): TextDecoder {
+  try {
+    if (label) return new TextDecoder(label.trim().replace(/^["']|["']$/g, ""));
+  } catch {
+    // Unknown label: fall back to UTF-8.
+  }
+  return new TextDecoder("utf-8");
+}
+
+/** Decodes an HTML body: charset from the Content-Type header, else a <meta charset> in the first 2 KB, else UTF-8. */
+export function decodeHtml(body: Uint8Array, contentType: string): string {
+  const fromHeader = /charset\s*=\s*["']?([^;\s"']+)/i.exec(contentType)?.[1];
+  const head = new TextDecoder("latin1").decode(body.subarray(0, META_SNIFF_BYTES));
+  const fromMeta = /<meta[^>]+charset\s*=\s*["']?([\w-]+)/i.exec(head)?.[1];
+  return decoderFor(fromHeader ?? fromMeta).decode(body);
+}
+
 const TEXT_NODE = 3;
 const ELEMENT_NODE = 1;
 

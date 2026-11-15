@@ -78,7 +78,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - Deleting a notebook removes the PDFs of its sources from storage (NB-008, along with deleting a single PDF source).
 - Sample sources in `fixtures/` (short text, public-domain PDF).
 
-**Done when:** on production, a ~50-page PDF, an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
+**Done when:** on production, a multi-page PDF within the text cap (the 32-page fixture `fixtures/nist-csf-2.0.pdf`), an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
 
 ## M5 · Chat with citations · open
 
@@ -141,5 +141,6 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - PDFs can have up to 100 pages and 80,000 characters of text; web pages up to 80,000 characters (the pasted-text cap, set by the embedding free tier). Longer documents fail with a message asking to split them or paste the part needed.
 - Web pages that need a login, sit behind a paywall or render their text with JavaScript can't be read; only `text/html` pages up to 5 MB on the default ports.
 - Processing runs in a serverless function without a queue; very large documents may time out.
+- "Try again" on a failed source isn't throttled, so a web page source can be fetched again on every retry (public addresses only). Acceptable behind the password gate.
 - The hourly source limit counts existing sources, so deleting one frees room, and "Try again" isn't limited. Acceptable behind the password gate.
 - No generated notes or audio recaps: cut to keep the core reliable (M6, M7); they are the natural next features.

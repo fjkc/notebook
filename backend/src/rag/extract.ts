@@ -31,11 +31,11 @@ export async function extractUrl(link: string): Promise<Extracted> {
   } catch (error) {
     throw new AppError("URL_FETCH_FAILED", { cause: error });
   }
-  const page = await fetchPage(url);
+  const html = await fetchPage(url);
 
   let article: ReturnType<Readability["parse"]>;
   try {
-    const { document } = parseHTML(page.html);
+    const { document } = parseHTML(html);
     // linkedom's Document is close enough to the DOM for Readability; the types differ (no DOM lib here).
     article = new Readability(document as unknown as ConstructorParameters<typeof Readability>[0]).parse();
   } catch (error) {
@@ -51,6 +51,19 @@ export async function extractUrl(link: string): Promise<Extracted> {
   return { pages: [{ page: null, text }], ...(title ? { title } : {}) };
 }
 
+// The exceptions PDF.js throws for a document it can't read (their `name` is the class name).
+const PDF_DOCUMENT_ERRORS = new Set([
+  "InvalidPDFException",
+  "PasswordException",
+  "FormatError",
+  "MissingPDFException",
+  "UnknownErrorException",
+]);
+
+function isPdfDocumentError(error: unknown): boolean {
+  return error instanceof Error && PDF_DOCUMENT_ERRORS.has(error.name);
+}
+
 /** A PDF from the private bucket, one page of text per PDF page (NB-008 R11). */
 export async function extractPdf(storagePath: string, ownerId: string): Promise<Extracted> {
   if (!storagePath.startsWith(`${ownerId}/`)) throw new Error("Storage path outside the owner's folder");
@@ -59,17 +72,22 @@ export async function extractPdf(storagePath: string, ownerId: string): Promise<
   if (!buffer) throw new AppError("UPLOAD_INCOMPLETE");
   if (buffer.byteLength > MAX_PDF_BYTES) throw new AppError("FILE_TOO_LARGE");
 
+  let pdf: Awaited<ReturnType<typeof getDocumentProxy>> | undefined;
   let pageTexts: string[];
   let pageCount: number;
   try {
-    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    pdf = await getDocumentProxy(new Uint8Array(buffer));
     pageCount = pdf.numPages;
     if (pageCount > MAX_PDF_PAGES) throw new AppError("LIMIT_REACHED", PDF_PAGE_LIMIT_MESSAGE);
     pageTexts = (await extractPdfText(pdf, { mergePages: false })).text;
   } catch (error) {
-    if (error instanceof AppError) throw error;
-    // Encrypted or corrupt: nothing we can read.
-    throw new AppError("NO_TEXT_FOUND", { cause: error });
+    // Only the document's own errors (encrypted, corrupt) mean "nothing we can read". Anything else,
+    // e.g. PDF.js failing to load in the bundle, stays INTERNAL so the real cause shows in the log.
+    if (isPdfDocumentError(error)) throw new AppError("NO_TEXT_FOUND", { cause: error });
+    throw error;
+  } finally {
+    // unpdf leaves a proxy we created to us; release it so a warm instance doesn't keep it.
+    await pdf?.loadingTask.destroy().catch(() => {});
   }
 
   const pages = pageTexts.map((text, i) => ({ page: i + 1, text }));

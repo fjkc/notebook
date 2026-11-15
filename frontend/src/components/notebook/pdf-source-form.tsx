@@ -11,6 +11,17 @@ import { isErrorBody, processInBackground } from "./process-source";
 
 const NOT_A_PDF = "Choose a PDF file.";
 const UPLOAD_FAILED = "The upload didn't work. Try again.";
+/** The route accepts names up to 200 characters; the title uses only the first 80 anyway. */
+const MAX_FILE_NAME_CHARS = 200;
+
+/**
+ * The name sent to the route: always ends in ".pdf" (a PDF picked by its type may lack it) and is cut
+ * to 200 characters, so a valid file is never refused for its name.
+ */
+function sendableName(name: string): string {
+  const base = name.trim().replace(/\.pdf$/i, "");
+  return `${base.slice(0, MAX_FILE_NAME_CHARS - 4).trimEnd()}.pdf`;
+}
 
 type Phase = "idle" | "preparing" | "uploading";
 type UploadTarget = { sourceId: string; path: string; token: string };
@@ -62,7 +73,7 @@ export function PdfSourceForm({ notebookId, onPendingChange, onDone }: PdfSource
       const response = await fetch("/api/sources/upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notebookId, fileName: chosen.name, fileSize: chosen.size }),
+        body: JSON.stringify({ notebookId, fileName: sendableName(chosen.name), fileSize: chosen.size }),
       });
       const body: unknown = await response.json().catch(() => null);
       if (response.ok && isUploadTarget(body)) return body;

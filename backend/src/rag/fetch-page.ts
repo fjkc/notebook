@@ -4,6 +4,7 @@ import http, { type IncomingMessage } from "node:http";
 import https from "node:https";
 import { AppError } from "../errors";
 import { MAX_URL_BYTES, URL_FETCH_TIMEOUT_MS, URL_MAX_REDIRECTS } from "../shared/limits";
+import { decodeHtml } from "./html-text";
 import { createGuardedLookup, createResolver, resolveRedirect } from "./url-guard";
 
 // Guarded fetch for web page sources (NB-008 R3, docs/ARCHITECTURE.md §6 "SSRF protection").
@@ -12,7 +13,6 @@ import { createGuardedLookup, createResolver, resolveRedirect } from "./url-guar
 const USER_AGENT = "Notehooked/1.0 (+source reader)";
 const HTML_TYPES = new Set(["text/html", "application/xhtml+xml"]);
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-const META_SNIFF_BYTES = 2_048;
 
 const lookup = createGuardedLookup(
   createResolver(
@@ -26,7 +26,8 @@ function request(url: URL, signal: AbortSignal): Promise<IncomingMessage> {
   return new Promise((resolve, reject) => {
     const req = client.request(url, {
       method: "GET",
-      headers: { "User-Agent": USER_AGENT },
+      // identity: we don't decompress, so a gzip body must never be sent (a missing header allows any coding).
+      headers: { "User-Agent": USER_AGENT, "Accept-Encoding": "identity" },
       lookup,
       signal,
     });
@@ -51,30 +52,12 @@ async function readBody(response: IncomingMessage): Promise<Buffer> {
   return Buffer.concat(parts);
 }
 
-function decoderFor(label: string | undefined): TextDecoder {
-  try {
-    if (label) return new TextDecoder(label.trim().replace(/^["']|["']$/g, ""));
-  } catch {
-    // Unknown label: fall back to UTF-8.
-  }
-  return new TextDecoder("utf-8");
-}
-
-/** Charset from the Content-Type header, else a <meta charset> in the first 2 KB, else UTF-8. */
-export function decodeHtml(body: Buffer, contentType: string): string {
-  const fromHeader = /charset\s*=\s*([^;\s]+)/i.exec(contentType)?.[1];
-  const head = body.subarray(0, META_SNIFF_BYTES).toString("latin1");
-  const fromMeta =
-    /<meta[^>]+charset\s*=\s*["']?([\w-]+)/i.exec(head)?.[1];
-  return decoderFor(fromHeader ?? fromMeta).decode(body);
-}
-
 /**
  * Fetches an HTML page that parsePublicUrl has already accepted: 10 s in total, at most 3 redirects
  * (each checked again), only 200 with an HTML type, at most 5 MB. Every failure is URL_FETCH_FAILED
  * with the underlying error as `cause` (logged, never shown).
  */
-export async function fetchPage(start: URL): Promise<{ url: URL; html: string }> {
+export async function fetchPage(start: URL): Promise<string> {
   const signal = AbortSignal.timeout(URL_FETCH_TIMEOUT_MS);
   let url = start;
   try {
@@ -99,7 +82,12 @@ export async function fetchPage(start: URL): Promise<{ url: URL; html: string }>
         response.resume();
         throw new Error(`Unsupported content type ${mediaType || "(none)"}`);
       }
-      return { url, html: decodeHtml(await readBody(response), contentType) };
+      const encoding = (response.headers["content-encoding"] ?? "identity").trim().toLowerCase();
+      if (encoding !== "identity") {
+        response.resume();
+        throw new Error(`Unsupported content encoding ${encoding}`);
+      }
+      return decodeHtml(await readBody(response), contentType);
     }
   } catch (error) {
     if (error instanceof AppError && error.code === "URL_FETCH_FAILED") throw error;
