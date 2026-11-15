@@ -13,5 +13,14 @@ export {
   type Notebook,
   type NotebookListItem,
 } from "./services/notebooks";
-export { assertNotebookOwner } from "./services/ownership";
+export { assertNotebookOwner, assertSourceOwner } from "./services/ownership";
+export {
+  createTextSource,
+  deleteSource,
+  listSources,
+  processSource,
+  type SourceListItem,
+  type SourceStatus,
+  type SourceType,
+} from "./services/sources";
 export * from "./shared";
