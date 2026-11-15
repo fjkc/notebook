@@ -1,14 +1,56 @@
+"use client";
+
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { chatErrorMessage, type ChatUIMessage } from "@/lib/chat";
+import { AskInput } from "./ask-input";
+import { MessageList, messageText } from "./message-list";
 import { ReaderContent } from "./reader";
 
+type AskProps = {
+  notebookId: string;
+  /** The stored conversation, loaded on the server (NB-009 R12). */
+  initialMessages: ChatUIMessage[];
+  /** At least one ready source; the Shelf's polling refresh updates it. */
+  hasReadySource: boolean;
+};
+
 /**
- * Ask (DESIGN.md → "Layout"): the chat area. In NB-006 it shows the empty state and a read-only
- * input; chat arrives in NB-009. Between 640 and 1023 px its header opens the Reader as a sheet.
+ * Ask (DESIGN.md → "Layout"): the chat area. Between 640 and 1023 px its header opens the Reader
+ * as a sheet. The request carries only the new question; the server builds the history (R8).
  */
-export function Ask() {
+export function Ask({ notebookId, initialMessages, hasReadySource }: AskProps) {
+  const [transport] = useState(
+    () =>
+      new DefaultChatTransport<ChatUIMessage>({
+        api: "/api/chat",
+        prepareSendMessagesRequest: ({ messages }) => {
+          const question = messages.findLast((message) => message.role === "user");
+          return { body: { notebookId, text: question ? messageText(question) : "" } };
+        },
+      }),
+  );
+  const { messages, sendMessage, regenerate, stop, status, error, setMessages } = useChat<ChatUIMessage>({
+    id: notebookId,
+    messages: initialMessages,
+    transport,
+  });
+  const busy = status === "submitted" || status === "streaming";
+
+  // An answer that failed before any text (e.g. an empty answer) leaves no empty bubble behind.
+  useEffect(() => {
+    if (status !== "error") return;
+    setMessages((current) => {
+      const last = current.at(-1);
+      return last?.role === "assistant" && !messageText(last).trim() ? current.slice(0, -1) : current;
+    });
+  }, [status, setMessages]);
+
+  const lastIsAnswerWithText = messages.at(-1)?.role === "assistant" && messageText(messages.at(-1)!).length > 0;
+
   return (
     <section aria-labelledby="ask-heading" className="flex min-h-0 min-w-0 flex-1 flex-col lg:basis-3/5">
       <div className="flex items-center justify-between gap-2 px-4 pt-4 sm:px-6">
@@ -32,29 +74,35 @@ export function Ask() {
         </Sheet>
       </div>
 
-      <div className="flex flex-1 flex-col justify-center overflow-y-auto px-4 py-8 sm:px-6">
-        <div className="mx-auto w-full max-w-xl">
-          <h3 className="font-reading text-[1.375rem] leading-snug font-medium">Ask about your sources</h3>
-          <p className="mt-2 text-graphite">
-            Add a source first. Answers come only from your sources, with a hook to each passage.
-          </p>
+      {messages.length === 0 ? (
+        <div className="flex flex-1 flex-col justify-center overflow-y-auto px-4 py-8 sm:px-6">
+          <div className="mx-auto w-full max-w-xl">
+            <h3 className="font-reading text-[1.375rem] leading-snug font-medium">Ask about your sources</h3>
+            <p className="mt-2 text-graphite">
+              {hasReadySource
+                ? "Answers come only from your sources, with a numbered hook to each passage."
+                : "Add a source first. Answers come only from your sources, with a hook to each passage."}
+            </p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <MessageList
+          messages={messages}
+          waiting={busy && !lastIsAnswerWithText}
+          error={status === "error" && error ? chatErrorMessage(error) : null}
+          onRetry={() => void regenerate()}
+        />
+      )}
 
       <div className="px-4 pb-4 sm:px-6">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            {/* Read-only and aria-disabled, with no submit handler: it stays focusable for the tooltip. */}
-            <Input
-              aria-label="Ask about your sources"
-              placeholder="Ask about your sources…"
-              aria-disabled="true"
-              readOnly
-              className="aria-disabled:cursor-not-allowed"
-            />
-          </TooltipTrigger>
-          <TooltipContent>Add a source first</TooltipContent>
-        </Tooltip>
+        <div className="mx-auto w-full max-w-2xl">
+          <AskInput
+            disabled={!hasReadySource}
+            busy={busy}
+            onSend={(text) => void sendMessage({ text })}
+            onStop={() => void stop()}
+          />
+        </div>
       </div>
     </section>
   );

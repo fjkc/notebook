@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { AppError, getNotebook, listSources, type Notebook, type SourceListItem } from "@repo/backend";
+import { AppError, getHistory, getNotebook, listSources, type Notebook, type SourceListItem } from "@repo/backend";
 import { NotebookLayout } from "@/components/notebook/notebook-layout";
 import { NotebookMenu } from "@/components/notebook/notebook-menu";
 import { TopBar } from "@/components/shell/top-bar";
@@ -40,11 +40,17 @@ export default async function NotebookPage({ params }: PageProps<"/notebook/[id]
     if (error instanceof AppError && error.code === "NOT_FOUND") notFound(); // deleted meanwhile
     toLoggedErrorBody(error, "notebookPage.listSources");
   }
+  // The conversation, so a reload shows it without a client fetch (NB-009 R12). A failure shows the
+  // error page with its "Try again"; NOT_FOUND means the notebook was deleted meanwhile.
+  const history = await getHistory(await getOwnerId(), notebook.id).catch((error: unknown) => {
+    if (error instanceof AppError && error.code === "NOT_FOUND") notFound();
+    throw error;
+  });
 
   return (
     <div className="flex h-dvh flex-col">
       <TopBar title={notebook.title} actions={<NotebookMenu id={notebook.id} title={notebook.title} />} />
-      <NotebookLayout notebookId={notebook.id} sources={sources} />
+      <NotebookLayout notebookId={notebook.id} sources={sources} history={history} />
     </div>
   );
 }
