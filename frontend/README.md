@@ -29,13 +29,15 @@ frontend/
       (app)/                          pages with the top bar; URLs don't include "(app)"
         layout.tsx                    mounts the TopBar
         page.tsx                      home: notebook list or empty state
+        error.tsx                     error page for home (never shows the raw error)
         design/                       /design reference page: tokens, type, components
       login/
         page.tsx, login-form.tsx      password form (the only page open without a session)
         actions.ts                    logIn: the only action without getOwnerId()
       actions.ts                      server actions for home
-      notebook/[id]/
-        page.tsx, loading.tsx, not-found.tsx
+      notebook/[id]/                  outside (app): renders its own TopBar with title and menu
+        page.tsx                      no loading.tsx, so notFound() still sends a 404
+        not-found.tsx, error.tsx
         actions.ts                    server actions for the notebook screen
       api/
         health/route.ts
@@ -46,14 +48,15 @@ frontend/
         notes/audio/route.ts          (stretch)
     components/
       ui/                             shadcn components, restyled to our design
-      shell/                          TopBar, Wordmark, ThemeToggle
-      home/                           NotebookRow
-      notebook/                       sources, chat, notes areas
+      shell/                          TopBar, Wordmark, ThemeToggle, ErrorView
+      home/                           NotebookRow, NewNotebookButton
+      notebook/                       layout, Shelf, Ask, Reader, notebook menu and dialogs
     lib/
       config.ts                       APP_NAME, UI-only constants
       owner.ts                        getOwnerId(): requires a valid session, returns the owner
       owner-cookie.ts                 cookie name and max age, shared with proxy.ts
-      http.ts                         toErrorResponse(), withRoute() logging wrapper
+      http.ts                         toErrorResponse(), withRoute() logging wrapper, toLoggedErrorBody() (shared with runAction)
+      action.ts                       ActionResult, runAction(): every Server Action goes through it
       supabase/browser.ts             publishable key, uploadToSignedUrl only
     proxy.ts                          access gate, then owner cookie (imports @repo/backend/shared and /access)
   vercel.json                         region fra1, daily health cron
@@ -76,28 +79,29 @@ Two entry points of the backend package:
 - `@repo/backend`: server-only (services, DB, AI). Importing it into a Client Component fails the build, and that is intended.
 - `@repo/backend/shared`: client-safe (limits, error codes and messages, `Citation` type, citation parser). Use it from Client Components.
 
-A Server Action should look like this, and no bigger:
+A Server Action should look like this, and no bigger. `runAction` gets the owner, catches and logs everything, and returns an `ActionResult` (data, or a code with a message the user may see):
 
 ```ts
 "use server";
-export async function renameNotebook(input: unknown) {
-  const ownerId = await getOwnerId();
-  const result = await notebooks.rename(ownerId, input); // validates + scopes
-  revalidatePath(`/notebook/${result.id}`);
+export async function renameNotebook(input: { id: string; title: string }): Promise<ActionResult<{ id: string }>> {
+  const result = await runAction("renameNotebook", (ownerId) => rename(ownerId, input)); // validates + scopes
+  if (result.ok) revalidatePath(`/notebook/${result.data.id}`);
   return result;
 }
 ```
+
+Call `redirect` after `runAction`, not inside it, so the success line is logged.
 
 ## Best practices
 
 **Rendering**
 - Server Components by default. Add `"use client"` only to the smallest interactive leaf, never to a page or layout.
 - Fetch data in Server Components by calling backend functions directly. No `useEffect` fetching and no internal `fetch("/api/...")` from the server.
-- Use streaming with `<Suspense>` and `loading.tsx` for slow areas so the shell renders instantly.
+- Use streaming with `<Suspense>` for slow areas so the shell renders instantly. Not in a route that calls `notFound()`: a `loading.tsx` or a `<Suspense>` above the check starts streaming with status 200, and the 404 is lost.
 - `notFound()` for unknown or foreign IDs. The 404 is deliberate, so IDs can't be probed.
 
 **Mutations and forms**
-- Server Actions for our own UI mutations, with `useActionState` for pending and error state and `useOptimistic` where instant feedback matters (rename, delete).
+- Server Actions for our own UI mutations, with `useActionState` for pending and error state and `useOptimistic` only where it's worth the rollback code.
 - Route Handlers only for streaming (chat), uploads, long processing and health. Runtime and duration settings: `docs/ARCHITECTURE.md` → "Runtime configuration".
 - Chat uses `useChat` from `@ai-sdk/react`, with citations arriving as message metadata (`docs/ARCHITECTURE.md` → "Chat and citations").
 

@@ -75,6 +75,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 - Source summaries and notebook suggested questions.
 - Sources UI: add dialog (three types), list with status, polling, retry on failed, delete, view summary, limits enforced with clear messages.
 - Stuck `processing` for more than 5 min is treated as failed and retryable.
+- Deleting a notebook removes the PDFs of its sources from storage.
 - Sample sources in `fixtures/` (short text, public-domain PDF).
 
 **Done when:** on production, a ~50-page PDF, an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.

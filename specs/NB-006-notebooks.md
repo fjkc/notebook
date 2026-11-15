@@ -101,7 +101,7 @@ Users can create, rename and delete their own notebooks, see them on the home pa
 
 ## Implementation
 
-- [ ] **Implemented** (`feat/NB-006-notebooks`)
+- [x] **Implemented** (`feat/NB-006-notebooks`)
   - No user steps.
   - Acceptance:
     - CI passes (lint, typecheck, test, build), including the R3 tests.
@@ -123,3 +123,9 @@ None. Decided by the user (2026-11-14): rename and delete live only in the noteb
 
 ## Notes
 Deviations found during implementation, one line each.
+- `error.tsx` calls `retry()` instead of `reset()`: in Next 16.3+ `retry` is the stable prop and re-fetches the segment, which is what helps after a database failure; `reset` only re-renders.
+- `createNotebook` takes no parameters: it needs neither the previous state nor the form data, `useActionState` accepts it as is, and lint flags unused ones.
+- One extra file, `components/shell/error-view.tsx`: the body both error pages share.
+- `lib/http.ts` exports `toLoggedErrorBody`, the error mapping and detail log that `withRoute` and `runAction` now share.
+- `deleteNotebook` doesn't call `revalidatePath("/")` (R5): in a Server Action it re-renders the current page, the deleted notebook, so the not-found view flashed before the client navigated. The dialog calls `router.replace("/")` and then `router.refresh()`, which also clears the client router cache so Back doesn't show the deleted notebook (review round 2).
+- R2's "may overshoot by one" is really "a burst of parallel creates may overshoot": count then insert has no lock. Still harmless (review round 1).

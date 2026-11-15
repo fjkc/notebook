@@ -2,3 +2,4 @@
 export * from "./limits";
 export * from "./error-codes";
 export * from "./ids";
+export * from "./notebook-title";
