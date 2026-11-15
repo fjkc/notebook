@@ -3,8 +3,11 @@
 /** Largest PDF upload, in bytes (10 MB). */
 export const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
-/** Most pages a PDF may have. */
-export const MAX_PDF_PAGES = 300;
+/**
+ * Most pages a PDF may have (NB-008 R10). With the extracted-text cap (MAX_PASTED_TEXT_CHARS) it keeps
+ * one source within the 45 s processing budget, below the 5-minute stuck window.
+ */
+export const MAX_PDF_PAGES = 100;
 
 /** Most notebooks one owner may have. */
 export const MAX_NOTEBOOKS_PER_OWNER = 50;
@@ -20,6 +23,9 @@ export const MAX_NEW_SOURCES_PER_OWNER_PER_HOUR = 20;
  * 80,000 characters are about 23,000 tokens with chunk overlap and reached ready in 34 s.
  */
 export const MAX_PASTED_TEXT_CHARS = 80_000;
+
+/** Longest link for a web page source, in characters. */
+export const MAX_URL_CHARS = 2_048;
 
 /** Longest source title, in characters (given or derived from the text). */
 export const MAX_SOURCE_TITLE_CHARS = 80;
@@ -49,6 +55,21 @@ export const STUCK_SOURCE_MS = 5 * 60 * 1000;
 
 /** How often the Shelf refreshes while a source is pending or processing, in ms. */
 export const SOURCE_POLL_MS = 2_000;
+
+/** Total time for fetching a web page, redirects included, in ms. */
+export const URL_FETCH_TIMEOUT_MS = 10_000;
+
+/** Most redirects followed when fetching a web page; each hop is checked again. */
+export const URL_MAX_REDIRECTS = 3;
+
+/** Largest web page body read, in bytes (5 MB); the read is aborted past it. */
+export const MAX_URL_BYTES = 5 * 1024 * 1024;
+
+/** A web page with less extracted text than this is treated as empty or rendered by JavaScript. */
+export const MIN_URL_TEXT_CHARS = 200;
+
+/** A PDF with less extracted text than this has no selectable text (NO_TEXT_FOUND). */
+export const MIN_PDF_TEXT_CHARS = 100;
 
 // Timeouts (docs/ARCHITECTURE.md → "Runtime configuration").
 

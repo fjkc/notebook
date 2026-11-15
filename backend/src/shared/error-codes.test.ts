@@ -11,6 +11,7 @@ describe("ERROR_CODES", () => {
     "FILE_TOO_LARGE",
     "NO_TEXT_FOUND",
     "URL_FETCH_FAILED",
+    "UPLOAD_INCOMPLETE",
     "ALREADY_PROCESSING",
     "INTERNAL",
   ];
