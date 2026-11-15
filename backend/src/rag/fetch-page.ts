@@ -13,6 +13,7 @@ import { createGuardedLookup, createResolver, resolveRedirect } from "./url-guar
 const USER_AGENT = "Notehooked/1.0 (+source reader)";
 const HTML_TYPES = new Set(["text/html", "application/xhtml+xml"]);
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const COMPRESSED_CODINGS = new Set(["gzip", "x-gzip", "deflate", "br", "compress", "x-compress", "zstd"]);
 
 const lookup = createGuardedLookup(
   createResolver(
@@ -82,8 +83,9 @@ export async function fetchPage(start: URL): Promise<string> {
         response.resume();
         throw new Error(`Unsupported content type ${mediaType || "(none)"}`);
       }
-      const encoding = (response.headers["content-encoding"] ?? "identity").trim().toLowerCase();
-      if (encoding !== "identity") {
+      const encoding = (response.headers["content-encoding"] ?? "").trim().toLowerCase();
+      // Only real compression is refused: some servers send an empty value, "none" or junk for plain bodies.
+      if (encoding.split(",").some((coding) => COMPRESSED_CODINGS.has(coding.trim()))) {
         response.resume();
         throw new Error(`Unsupported content encoding ${encoding}`);
       }

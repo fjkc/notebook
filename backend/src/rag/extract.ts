@@ -6,6 +6,7 @@ import * as storage from "../db/storage";
 import { AppError } from "../errors";
 import { MAX_PDF_BYTES, MAX_PDF_PAGES, MIN_PDF_TEXT_CHARS, MIN_URL_TEXT_CHARS } from "../shared/limits";
 import type { PageText } from "./chunk";
+import { stripControlChars } from "./clean-text";
 import { fetchPage } from "./fetch-page";
 import { htmlToText } from "./html-text";
 import { parsePublicUrl } from "./url-guard";
@@ -19,7 +20,7 @@ export const PDF_PAGE_LIMIT_MESSAGE = `PDFs can have up to ${MAX_PDF_PAGES} page
 
 /** Pasted text: one page without a page number. */
 export function extractText(inputText: string): Extracted {
-  return { pages: [{ page: null, text: inputText }] };
+  return { pages: [{ page: null, text: stripControlChars(inputText) }] };
 }
 
 /** A web page: guarded fetch → linkedom → Readability → htmlToText (NB-008 R5). */
@@ -43,7 +44,7 @@ export async function extractUrl(link: string): Promise<Extracted> {
   }
   if (!article?.content) throw new AppError("URL_FETCH_FAILED", { cause: new Error("No article found") });
 
-  const text = htmlToText(article.content);
+  const text = stripControlChars(htmlToText(article.content));
   if (text.length < MIN_URL_TEXT_CHARS) {
     throw new AppError("URL_FETCH_FAILED", { cause: new Error(`Only ${text.length} characters of text`) });
   }
@@ -90,7 +91,8 @@ export async function extractPdf(storagePath: string, ownerId: string): Promise<
     await pdf?.loadingTask.destroy().catch(() => {});
   }
 
-  const pages = pageTexts.map((text, i) => ({ page: i + 1, text }));
+  // Stripped before the check, so a page of only control characters (no usable font map) counts as empty.
+  const pages = pageTexts.map((text, i) => ({ page: i + 1, text: stripControlChars(text) }));
   const total = pages.reduce((sum, page) => sum + page.text.trim().length, 0);
   if (total < MIN_PDF_TEXT_CHARS) throw new AppError("NO_TEXT_FOUND");
   return { pages, pageCount };

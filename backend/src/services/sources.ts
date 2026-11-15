@@ -85,14 +85,6 @@ function cutTitle(title: string): string {
   return cut.trimEnd();
 }
 
-// Control characters other than tab, newline and carriage return; Postgres text columns reject U+0000.
-const CONTROL_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
-
-/** Removes control characters (e.g. U+0000 from some PDF fonts) that would make the chunk insert fail. */
-export function stripControlChars(text: string): string {
-  return text.replace(CONTROL_CHARS, "");
-}
-
 /** Provisional title for a link until extraction finds the page's own: hostname plus path, max 80. */
 export function urlTitle(url: URL): string {
   const path = url.pathname === "/" ? "" : decodeURIComponentSafe(url.pathname);
@@ -266,7 +258,7 @@ export async function processSource(ownerId: string, sourceId: unknown): Promise
   const budget = AbortSignal.timeout(PROCESS_BUDGET_MS);
   try {
     const extracted = await extract(ownerId, source);
-    const pages = extracted.pages.map((page) => ({ ...page, text: stripControlChars(page.text) }));
+    const { pages } = extracted;
     const text = pages.map((page) => page.text).join("\n\n");
     // R6a: fail fast and clearly, before any embedding.
     if (source.type !== "text" && text.length > MAX_PASTED_TEXT_CHARS) {

@@ -49,6 +49,7 @@ backend/
       errors.ts           toAiError(): Gemini 429 → RATE_LIMITED, else INTERNAL (+ test)
     rag/
       extract.ts          pdf (unpdf) / url (readability + linkedom) / text → { pages, title?, pageCount? }
+      clean-text.ts       stripControlChars, used by every extractor (+ test)
       fetch-page.ts       guarded fetch: node:http(s) with the pinned lookup, redirects, size and type checks
       html-text.ts        readability HTML → text with paragraph breaks (+ test)
       chunk.ts            + chunk.test.ts

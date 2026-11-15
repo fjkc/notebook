@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STUCK_SOURCE_MS } from "../shared/limits";
-import { CLOCK_SKEW_MARGIN_MS, effectiveStatus, pdfTitle, stripControlChars, textTitle, urlTitle } from "./sources";
+import { CLOCK_SKEW_MARGIN_MS, effectiveStatus, pdfTitle, textTitle, urlTitle } from "./sources";
 
 describe("textTitle", () => {
   it("uses a plain first line", () => {
@@ -87,8 +87,3 @@ describe("pdfTitle", () => {
   });
 });
 
-describe("stripControlChars", () => {
-  it("removes NUL and other control characters but keeps tabs and line breaks", () => {
-    expect(stripControlChars("a\u0000b\u0007c\td\ne\r\nf\u007f")).toBe("abc\td\ne\r\nf");
-  });
-});
