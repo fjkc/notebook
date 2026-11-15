@@ -49,6 +49,8 @@ Supabase pauses free projects after a period of inactivity, and reviewers may op
 ### Observability
 Each Route Handler logs one structured line per request: route, first 8 chars of `owner_id`, duration in ms, outcome or error code. Never log secrets or document contents. Production debugging uses Vercel's runtime logs.
 
+The streaming chat route uses `withRoute(…, { streaming: true })`: errors thrown before the stream starts are logged by `withRoute`, and the route logs its one line itself when the stream ends, from `streamText`'s `onEnd` (`ok`, or `empty` for an answer without text), `onAbort` (`aborted`, at level info) or `onError` (the error code). An error with a cause may add one detail line, as everywhere.
+
 ## 2. Key decisions
 
 Explain these in the README and the Loom video.
@@ -151,6 +153,11 @@ The client doesn't wait for the process call: after a create (whose action reval
 - Shelf polling every 2 s (`SOURCE_POLL_MS`); stuck after 5 minutes (`STUCK_SOURCE_MS`)
 - Gemini free tier, read from the AI Studio rate-limit page on 2026-11-15: `gemini-3.5-flash` (chat, since NB-009; its limits still to be copied from that page); `gemini-embedding-001` 100 requests/min, 30,000 tokens/min, 1,000 requests/day; `gemini-3.5-flash-lite` (summaries) 15 requests/min, 250,000 tokens/min, 500 requests/day. A source costs one embedding call per 100 chunks plus one Flash-Lite summary call (at most ~8,000 input tokens), so summaries are limited by the 500 requests a day, not by tokens.
 
+Chat (§7):
+- Questions up to 2,000 characters (`MAX_QUESTION_CHARS`); the input shows a counter from 1,800 (`QUESTION_COUNTER_FROM_CHARS`)
+- At most 10 questions per owner per minute (`MAX_CHAT_MESSAGES_PER_MINUTE`), counted from stored user messages; every request counts, resends included
+- The last 6 stored messages (`CHAT_HISTORY_MESSAGES`) are loaded as history; 8 passages per question (`RETRIEVAL_MATCH_COUNT`); citation excerpts up to 400 characters (`CITATION_EXCERPT_CHARS`)
+
 ### SSRF protection (`rag/url-guard.ts`, `rag/fetch-page.ts`)
 - **`parsePublicUrl`** (on create, without DNS, and again before the fetch), in order: max 2,048 chars (the input and the normalised href); parseable, `http:`/`https:` only; no user name or password; no port other than 80/443; not `localhost`/`*.localhost` and not a literal IP that isn't public (also the forms `new URL` normalises, such as `127.1`, `0x7f000001`, `2130706433`). Each failure is `VALIDATION` with its own message (§11).
 - **`isPublicAddress`**: IPv4 is public unless in 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.168.0.0/16, 198.18.0.0/15 or 224.0.0.0/3 and above. IPv6 is public only in global unicast 2000::/3 and not in 2001::/32 (Teredo), 2001:db8::/32 or 2002::/16 (6to4); an IPv4-mapped address (`::ffff:a.b.c.d` or the hex form) is judged by its IPv4 part. Everything else (`::`, `::1`, fc00::/7, fe80::/10, ff00::/8, 64:ff9b::/96 …) is not public.
@@ -161,11 +168,11 @@ The client doesn't wait for the process call: after a create (whose action reval
 ## 7. Chat and citations
 
 ### Flow (`POST /api/chat`)
-1. Validate `{ notebookId, messages, sourceIds? }`, `assertNotebookOwner`, throttle check (max 10 user messages per owner per minute, counted in `messages`).
-2. Persist the new user message.
-3. Embed the latest user message (`taskType: "RETRIEVAL_QUERY"`), call `match_chunks` with `p_match_count = 8` and `p_source_ids` (null = all ready sources).
-4. Build the system prompt with passages numbered `[1]…[n]` (see Prompts). Include the last 6 messages as conversation history, text only.
-5. `streamText` with the Flash model. Attach the citation map as **message metadata**:
+1. Validate `{ notebookId, text, sourceIds? }` (strict: any other key, such as `messages`, is `VALIDATION`), `assertNotebookOwner`, check that every `sourceIds` entry is a ready source of the notebook (else `NOT_FOUND`), throttle check (max 10 user messages per owner per minute, counted in `messages`).
+2. Build the history **from the database, not the client**: the last 6 stored messages, keeping only answered pairs (a user message directly followed by an assistant message), so turns alternate and questions that never got an answer (after an error or "Stop") are dropped. Old citation markers are stripped from the answers, because each turn numbers its passages from 1. The client can't inject assistant turns or forged citations.
+3. Persist the new user message.
+4. Embed the question (`taskType: "RETRIEVAL_QUERY"`), call `match_chunks` with `p_match_count = 8` and `p_source_ids` (null = all ready sources), load the source titles in one owner-scoped query.
+5. Build the system prompt with passages numbered `[1]…[n]` inside `<passages>…</passages>` (see Prompts), and `streamText` with `TEXT_MODEL`, the history as text-only messages plus the question, temperature 0.2, `maxRetries: 2` and the request's abort signal. The citation map goes out as **message metadata** on the stream's `start` part:
    ```ts
    type Citation = {
      n: number;            // the number used in the answer
@@ -176,11 +183,12 @@ The client doesn't wait for the process call: after a create (whose action reval
      excerpt: string;      // chunk content, max 400 chars
    };
    ```
-6. On finish: persist the assistant message with `citations` filtered to the numbers actually used in the answer.
+6. The route forwards the model's UI message stream without its finish part, then writes the finish part itself, or an error part when the answer is empty after trimming (e.g. a safety block). Stream errors are mapped to the code's user message (a Gemini 429 → `RATE_LIMITED`), never a raw error.
+7. On a normal finish (`onEnd`): persist the assistant message with `citations` filtered to the numbers actually used in the answer. On abort ("Stop"), error or an empty answer nothing is saved; the user message stays, and the page shows a resent question once (a user message directly followed by one with the same text is left out of the history it renders).
 
 ### Rendering
 - `backend/src/shared/citations.ts` (client-safe) finds markers `[1]`, `[1, 3]`, `[1][3]`, ignores numbers that aren't in the citation map, and returns segments of text and citation refs.
-- Answers render as Markdown (`react-markdown` + `remark-gfm`) with markers replaced by citation chips. Pressing a citation hook opens the Reader (source title, page and the excerpt with the marker highlight; a side pane on desktop, a sheet on smaller screens) and highlights the source's chip on the Shelf, instead of a popover (`docs/DESIGN.md` → "Layout"). It uses only the data in `Citation`.
+- Answers render as Markdown (`react-markdown` + `remark-gfm`, `skipHtml`, links in a new tab). A small remark plugin (`components/notebook/remark-citations.ts`) runs the parser on each Markdown **text node** only, so code is never touched and Markdown structure stays intact, and replaces markers with a custom node that becomes a `<cite data-numbers="1,3">` element (via `data.hName`). The saved answer's citations are filtered on the raw Markdown with `usedCitationNumbers`, which ignores code. Until NB-010 the markers show as superscript numbers; from NB-010, pressing a citation hook opens the Reader (source title, page and the excerpt with the marker highlight; a side pane on desktop, a sheet on smaller screens) and highlights the source's chip on the Shelf, instead of a popover (`docs/DESIGN.md` → "Layout"). It uses only the data in `Citation`.
 - When no sources are ready, the chat input is disabled and the empty state explains how to add a source.
 - Suggested questions appear as clickable chips when the chat is empty.
 - Users can include/exclude sources for chat (client state, sent as `sourceIds`).
@@ -223,7 +231,7 @@ Cut with M7 (`docs/PROGRESS.md` → "Decisions log", Scope). Kept as a sketch; d
 | `GET /api/health` | – | `{ ok, db, timestamp }`: `200` when the database answers, `503` otherwise (no error body) |
 | `POST /api/sources/upload-url` | `{ notebookId, fileName, fileSize }` | `{ sourceId, path, token }`, or the error shape (`400 VALIDATION` "Choose a PDF file.", `FILE_TOO_LARGE`, `LIMIT_REACHED`, `404`) |
 | `POST /api/sources/[id]/process` | – | `200 { status: "ready" }`, or the error shape (`404`, `409 ALREADY_PROCESSING`, `429`, …) |
-| `POST /api/chat` | `{ notebookId, messages, sourceIds? }` | UI message stream |
+| `POST /api/chat` | `{ notebookId, text, sourceIds? }` (only the new question; history comes from the database) | UI message stream, or the error shape before streaming (`400`, `404`, `429`, …) |
 | `POST /api/notes` | `{ notebookId, kind }` | `{ note }` |
 | `POST /api/notes/audio` | `{ notebookId }` | `{ note }` |
 

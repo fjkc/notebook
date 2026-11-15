@@ -55,8 +55,9 @@ frontend/
       config.ts                       APP_NAME, UI-only constants
       owner.ts                        getOwnerId(): requires a valid session, returns the owner
       owner-cookie.ts                 cookie name and max age, shared with proxy.ts
-      http.ts                         toErrorResponse(), withRoute() logging wrapper, toLoggedErrorBody() (shared with runAction)
+      http.ts                         toErrorResponse(), withRoute() logging wrapper ({ streaming } for chat), toLoggedErrorBody() (shared with runAction)
       action.ts                       ActionResult, runAction(): every Server Action goes through it
+      chat.ts                         ChatUIMessage type, chatErrorMessage() for the Ask pane (client-safe)
       supabase/browser.ts             publishable key, uploadToSignedUrl only
     proxy.ts                          access gate, then owner cookie (imports @repo/backend/shared and /access)
   vercel.json                         region fra1, daily health cron
