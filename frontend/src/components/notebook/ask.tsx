@@ -5,15 +5,17 @@ import { DefaultChatTransport } from "ai";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { chatErrorMessage, type ChatUIMessage } from "@/lib/chat";
+import { chatErrorMessage, messageText, type ChatUIMessage } from "@/lib/chat";
 import { AskInput } from "./ask-input";
-import { MessageList, messageText } from "./message-list";
+import { MessageList } from "./message-list";
 import { ReaderContent } from "./reader";
 
 type AskProps = {
   notebookId: string;
   /** The stored conversation, loaded on the server (NB-009 R12). */
   initialMessages: ChatUIMessage[];
+  /** Loading the stored conversation failed; only shown while the chat is empty. */
+  historyFailed: boolean;
   /** At least one ready source; the Shelf's polling refresh updates it. */
   hasReadySource: boolean;
 };
@@ -22,7 +24,7 @@ type AskProps = {
  * Ask (DESIGN.md → "Layout"): the chat area. Between 640 and 1023 px its header opens the Reader
  * as a sheet. The request carries only the new question; the server builds the history (R8).
  */
-export function Ask({ notebookId, initialMessages, hasReadySource }: AskProps) {
+export function Ask({ notebookId, initialMessages, historyFailed, hasReadySource }: AskProps) {
   const [transport] = useState(
     () =>
       new DefaultChatTransport<ChatUIMessage>({
@@ -83,6 +85,11 @@ export function Ask({ notebookId, initialMessages, hasReadySource }: AskProps) {
                 ? "Answers come only from your sources, with a numbered hook to each passage."
                 : "Add a source first. Answers come only from your sources, with a hook to each passage."}
             </p>
+            {historyFailed && (
+              <p role="alert" className="mt-4 text-sm text-danger">
+                Couldn&apos;t load the earlier conversation. Reload the page to try again.
+              </p>
+            )}
           </div>
         </div>
       ) : (

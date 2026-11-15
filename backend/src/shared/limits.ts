@@ -121,3 +121,9 @@ export const RETRIEVAL_MATCH_COUNT = 8;
 
 /** Longest citation excerpt shown to the user, in characters including the "…". */
 export const CITATION_EXCERPT_CHARS = 400;
+
+/**
+ * An answer still streaming after this long is stopped with an error, in ms. Below the chat route's 60 s
+ * maxDuration, so the client gets an error part and "Try again" instead of a stream that just stops.
+ */
+export const CHAT_ANSWER_TIMEOUT_MS = 50_000;

@@ -1,6 +1,7 @@
 import { createUIMessageStream, createUIMessageStreamResponse, toUIMessageStream, type ToolSet } from "ai";
 import {
   AppError,
+  CHAT_ANSWER_TIMEOUT_MS,
   ERROR_CODES,
   isEmptyAnswer,
   logOperation,
@@ -50,8 +51,12 @@ export const POST = withRoute(
       logOperation({ route: ROUTE, ownerPrefix: ownerId, durationMs: performance.now() - started, outcome, errorCode });
     };
 
+    // "Stop" closes the request; the timeout ends a slow answer before Vercel kills the function.
+    const timeout = AbortSignal.timeout(CHAT_ANSWER_TIMEOUT_MS);
+    const timedOut = () => timeout.aborted && !request.signal.aborted;
+
     const result = streamChatAnswer(chat, {
-      abortSignal: request.signal,
+      abortSignal: AbortSignal.any([request.signal, timeout]),
       onEnd: async ({ text }) => {
         if (failed) return;
         if (isEmptyAnswer(text)) return log("empty");
@@ -66,7 +71,8 @@ export const POST = withRoute(
       },
       onAbort: () => {
         failed = true;
-        log("aborted");
+        if (timedOut()) log("error", "INTERNAL");
+        else log("aborted");
       },
       onError: ({ error }) => {
         failed = true;
@@ -88,13 +94,17 @@ export const POST = withRoute(
         // guaranteed to come after the last text part.
         // After an abort the client is gone; a mid-stream error was already sent as an error part.
         // Either way (a rejected read or await, or a flag set by onAbort/onError) nothing more is written.
+        // A timeout is the one abort the client should hear about: it's still connected.
+        const timeoutError = () => writer.write({ type: "error", errorText: ERROR_CODES.INTERNAL.message });
         let text: string;
         try {
           const reader = modelStream.getReader();
           for (let next = await reader.read(); !next.done; next = await reader.read()) writer.write(next.value);
+          if (timedOut()) return timeoutError();
           if (failed || request.signal.aborted || (await result.finishReason) === "error") return;
           text = await result.text;
         } catch {
+          if (timedOut()) timeoutError();
           return;
         }
         if (isEmptyAnswer(text)) writer.write({ type: "error", errorText: ERROR_CODES.INTERNAL.message });

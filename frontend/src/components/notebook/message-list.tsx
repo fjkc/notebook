@@ -1,16 +1,12 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
-import type { ChatUIMessage } from "@/lib/chat";
+import { messageText, type ChatUIMessage } from "@/lib/chat";
 import { Button } from "@/components/ui/button";
 import { AnswerMarkdown } from "./answer-markdown";
 
 /** Distance from the bottom, in px, that still counts as "at the bottom" for following the stream. */
 const BOTTOM_SLACK_PX = 48;
-
-export function messageText(message: ChatUIMessage): string {
-  return message.parts.map((part) => (part.type === "text" ? part.text : "")).join("");
-}
 
 type MessageListProps = {
   messages: ChatUIMessage[];

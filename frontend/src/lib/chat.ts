@@ -4,6 +4,11 @@ import { ERROR_CODES, type Citation } from "@repo/backend/shared";
 /** A chat message in the Ask pane: answers carry their citation map as metadata (NB-009 R9). */
 export type ChatUIMessage = UIMessage<{ citations: Citation[] }>;
 
+/** A message's text: its text parts joined. */
+export function messageText(message: ChatUIMessage): string {
+  return message.parts.map((part) => (part.type === "text" ? part.text : "")).join("");
+}
+
 const KNOWN_MESSAGES: ReadonlySet<string> = new Set(Object.values(ERROR_CODES).map((entry) => entry.message));
 
 /**

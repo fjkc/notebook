@@ -11,7 +11,8 @@ import { Shelf } from "./shelf";
  * - tablet (640–1023 px): Shelf strip, Ask full width, the Reader as a sheet from Ask's header;
  * - mobile (< 640 px): "Sources (n)" opens the Shelf as a bottom sheet, Ask fills the screen.
  */
-type NotebookLayoutProps = { notebookId: string; sources: SourceListItem[] | null; history: ChatMessage[] };
+/** `history` is null when loading the conversation failed. */
+type NotebookLayoutProps = { notebookId: string; sources: SourceListItem[] | null; history: ChatMessage[] | null };
 
 /** Stored messages as the chat's initial UI messages: one text part, citations as metadata. */
 function toUIMessages(history: ChatMessage[]): ChatUIMessage[] {
@@ -30,7 +31,12 @@ export function NotebookLayout({ notebookId, sources, history }: NotebookLayoutP
     <div className="flex min-h-0 flex-1 flex-col">
       <Shelf notebookId={notebookId} sources={sources} />
       <div className="flex min-h-0 flex-1">
-        <Ask notebookId={notebookId} initialMessages={toUIMessages(history)} hasReadySource={hasReadySource} />
+        <Ask
+          notebookId={notebookId}
+          initialMessages={toUIMessages(history ?? [])}
+          historyFailed={history === null}
+          hasReadySource={hasReadySource}
+        />
         <Reader />
       </div>
     </div>
