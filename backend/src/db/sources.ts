@@ -211,3 +211,23 @@ export async function remove(ownerId: string, id: string): Promise<void> {
   const { error } = await getSupabase().from("sources").delete().eq("owner_id", ownerId).eq("id", id);
   if (error) fail("remove", error);
 }
+
+/** How many of `ids` are ready sources of the owner's notebook (checks a chat's sourceIds). */
+export async function countReadyInNotebook(ownerId: string, notebookId: string, ids: string[]): Promise<number> {
+  const { count, error } = await getSupabase()
+    .from("sources")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_id", ownerId)
+    .eq("notebook_id", notebookId)
+    .eq("status", "ready")
+    .in("id", ids);
+  if (error) fail("countReadyInNotebook", error);
+  return count ?? 0;
+}
+
+/** Titles of the owner's sources among `ids`, by id (one query, for citations). */
+export async function titlesByIds(ownerId: string, ids: string[]): Promise<Map<string, string>> {
+  const { data, error } = await getSupabase().from("sources").select("id, title").eq("owner_id", ownerId).in("id", ids);
+  if (error) fail("titlesByIds", error);
+  return new Map((data ?? []).map((row) => [row.id as string, row.title as string]));
+}

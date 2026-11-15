@@ -3,6 +3,10 @@ import "server-only";
 // Server entry of @repo/backend. Services are re-exported here as they're added.
 export { AppError, describeError, toErrorBody, toUserMessage, type ErrorSummary } from "./errors";
 export { logOperation, type LogFields } from "./log";
+export { streamChatAnswer } from "./ai/chat";
+export { toAiError } from "./ai/errors";
+export { getHistory, saveAnswer, startChat, type ChatMessage, type StartedChat } from "./services/chat";
+export { isEmptyAnswer } from "./services/chat-history";
 export { checkDatabase } from "./services/health";
 export {
   createNotebook,
