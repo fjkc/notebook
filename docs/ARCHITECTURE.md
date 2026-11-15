@@ -122,7 +122,7 @@ Full definition in `infra/supabase/migrations/0001_init.sql`. Summary:
 | `messages` | `notebook_id`, `owner_id`, `role`, `content`, `citations jsonb` |
 | `notes` | `notebook_id`, `owner_id`, `kind` (briefing/faq/study_guide/audio), `title`, `content`, `audio_path` |
 
-Function `match_chunks(p_notebook_id, p_query_embedding, p_match_count, p_source_ids)` returns the nearest chunks (cosine) of ready sources, optionally limited to selected sources.
+Function `match_chunks(p_notebook_id, p_query_embedding, p_match_count, p_source_ids)` returns the nearest chunks (cosine) of ready sources, optionally limited to selected sources. Since `0003_match_chunks_exact.sql` the search is exact per notebook: it selects the notebook's chunks first and then sorts them, because the global HNSW index would take the nearest chunks across all notebooks before filtering and could return nothing for a small notebook. A notebook holds at most ~800 chunks, so the exact scan is cheap.
 
 **Source status lifecycle:** `pending` → `processing` → `ready` | `failed`. A `failed` source can be retried. A source stuck in `pending` or `processing` for more than 5 minutes (by `updated_at`) is shown as `failed` with error "Processing timed out." (computed on read, never written) and can be retried.
 
@@ -142,7 +142,7 @@ Function `match_chunks(p_notebook_id, p_query_embedding, p_match_count, p_source
    - **Text cap:** URL and PDF text has the pasted-text cap (`MAX_PASTED_TEXT_CHARS`), because the same embedding quota and time budget apply. Over it → `LIMIT_REACHED` ("This page has more than 80,000 characters of text. Paste the part you need instead." / "This PDF has more than 80,000 characters of text. Split it, or paste the part you need."), checked right after extraction, before any embedding.
 4. **Chunk** (`rag/chunk.ts`): each page separately (chunks never cross pages, so page numbers stay exact). Split into paragraphs, then sentences if needed; merge up to ~1,000 chars with ~150 chars overlap; merge a trailing piece under 200 chars into the previous chunk of the same page.
 5. **Embed** (`rag/embed.ts`): `embedMany` in sequential batches of up to 100, `taskType: "RETRIEVAL_DOCUMENT"`, `outputDimensionality: 768`. Insert chunks in batches.
-6. **Summarise:** one Flash-Lite call (`SUMMARY_MODEL`, ~1–2 s, its own quota) → 3–4 sentence summary → `sources.summary`. Best-effort: if it fails (quota, timeout), the failure is logged and the source still becomes `ready` with `summary = null`, since its chunks are stored and usable in answers.
+6. **Summarise:** one Flash-Lite call (`SUMMARY_MODEL`, ~1–2 s, a quota shared with chat answers) → 3–4 sentence summary → `sources.summary`. Best-effort: if it fails (quota, timeout), the failure is logged and the source still becomes `ready` with `summary = null`, since its chunks are stored and usable in answers.
 7. **Ready:** set `status = 'ready'`, `page_count`, `char_count`.
 8. **Suggested questions** (NB-010, after `ready`): regenerate `notebooks.suggested_questions` from all ready source summaries (structured output, 3–5 questions). Failure here is logged but doesn't fail the source.
 

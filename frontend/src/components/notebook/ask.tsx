@@ -41,6 +41,9 @@ export function Ask({ notebookId, initialMessages, historyFailed, hasReadySource
     transport,
   });
   const busy = status === "submitted" || status === "streaming";
+  // useChat reads initialMessages only once, so a later successful refresh doesn't fill the chat:
+  // keep the first load's failure until the user reloads, as the line asks.
+  const [historyMissing] = useState(historyFailed);
 
   // An answer that failed before any text (e.g. an empty answer) leaves no empty bubble behind.
   useEffect(() => {
@@ -85,7 +88,7 @@ export function Ask({ notebookId, initialMessages, historyFailed, hasReadySource
                 ? "Answers come only from your sources, with a numbered hook to each passage."
                 : "Add a source first. Answers come only from your sources, with a hook to each passage."}
             </p>
-            {historyFailed && (
+            {historyMissing && (
               <p role="alert" className="mt-4 text-sm text-danger">
                 Couldn&apos;t load the earlier conversation. Reload the page to try again.
               </p>
