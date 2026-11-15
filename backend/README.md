@@ -34,7 +34,9 @@ backend/
     access/               password gate: env, session tokens, password check, safe redirect
       index.ts            entry for "@repo/backend/access" (not server-only, the proxy imports it)
     db/                   typed query helpers: notebooks, sources, chunks, messages, notes
+      notebooks.ts        list (with source counts), get, count, insert, rename, delete
     services/             notebooks, sources, chat, notes, health: one module per area
+      notebooks.ts        list, get, create (limit), rename, delete
     ai/
       models.ts           the only place with Gemini model IDs
       prompts.ts          the only place with prompts
@@ -49,6 +51,7 @@ backend/
       limits.ts           all limits (single source of truth)
       error-codes.ts      codes, HTTP statuses, user-facing messages, ErrorCode
       ids.ts              isUuid() (also used by the proxy)
+      notebook-title.ts   NotebookTitle zod rule, shared with the rename dialog (+ test)
       citations.ts        Citation type + marker parser + citations.test.ts
 ```
 

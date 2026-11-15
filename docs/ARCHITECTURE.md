@@ -139,6 +139,7 @@ The client awaits the process call with a loading state. While any source in the
 
 ### Limits (`backend/src/shared/limits.ts`)
 - PDF max 10 MB and 300 pages
+- Max 50 notebooks per owner (`MAX_NOTEBOOKS_PER_OWNER`)
 - Max 10 sources per notebook
 - Max 20 new sources per owner per hour
 - Max pasted text 200,000 chars
@@ -195,9 +196,9 @@ Cut with M7 (`docs/PROGRESS.md` → "Decisions log", Scope). Kept as a sketch; d
 
 | Action | Input | Notes |
 |---|---|---|
-| `createNotebook` | `{ title? }` | redirects to the new notebook |
+| `createNotebook` | none | starts as "Untitled notebook" (max 50 per owner), redirects to the new notebook |
 | `renameNotebook` | `{ id, title }` | |
-| `deleteNotebook` | `{ id }` | also removes storage files of its sources |
+| `deleteNotebook` | `{ id }` | the client navigates home; storage files of its sources are removed from M4 on, with PDF uploads |
 | `createTextSource` | `{ notebookId, title?, text }` | returns `{ sourceId }` |
 | `createUrlSource` | `{ notebookId, url }` | returns `{ sourceId }` |
 | `deleteSource` | `{ id }` | removes chunks (cascade) and storage file |
