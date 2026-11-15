@@ -1,6 +1,6 @@
 ---
 name: review
-description: Review a pull request in this repo with the reviewer, bugfinder and optional security-audit agents (or the spec-reviewer for spec PRs), running in the background, and post the result as one GitHub review with inline comments and a summary. Use when the user asks to review a PR or MR, e.g. "/review 5", "review PR 5", "review this PR", "let the agents review the MR", "run a security review on PR 7". Only when the user asks for a review; never start one on your own initiative, e.g. not automatically after opening a PR.
+description: Review a pull request in this repo with the reviewer, bugfinder and optional security-audit agents (or the spec-reviewer for spec PRs), running in the background, and post the result as one GitHub review with inline comments and a summary. Use when the user asks to review a PR or MR, e.g. "/review 5", "review PR 5", "review this PR", "let the agents review the MR", "run a security review on PR 7". Also runs as part of the two automatic review rounds after Claude opens a PR (WORKFLOW.md §5 "Automatic review rounds"); otherwise only when the user asks for a review.
 argument-hint: "[PR number] [--security | --no-security]"
 ---
 
@@ -21,6 +21,7 @@ git status --porcelain -- .claude CLAUDE.md   # must print nothing (catches untr
 ```
 - **Both pass** (the tooling equals the base branch, nothing untracked): continue.
 - **Otherwise: stop.** Tell the user the local review tooling differs from `<base>`, usually because a PR that changes it is checked out, and ask them to switch to `<base>` or explicitly confirm.
+- **Automatic review rounds** (`WORKFLOW.md` §5): instead of asking, switch to an up-to-date `<base>` (the working tree must be clean), run the guard again, and review from there with `local_head_matches: false`. Switch back to the PR branch only after the review is posted.
 - **Bootstrap exception:** if `<base>` has no `.claude/hooks/review-readonly.py` yet (the PR that introduces the tooling), continue, and say so in the summary.
 
 ## 1. Resolve the PR
@@ -170,4 +171,6 @@ Reviewed by reviewer, bugfinder, security-audit at <short sha> · round <N> (re-
 
 ## 6. Report to the user
 
-Three to five lines: the verdict, the counts, whether security ran, the review link. Then stop. Fixing findings is a separate request, and it follows the loop gate in `WORKFLOW.md` §5.
+Three to five lines: the verdict, the counts, whether security ran, the review link.
+- **Run by the user:** then stop. Fixing findings is a separate request, and it follows the loop gate in `WORKFLOW.md` §5.
+- **Part of the automatic review rounds:** don't stop. Continue with the triage and fixes of this round (`WORKFLOW.md` §5 "Automatic review rounds"), then round 2 or the final report.

@@ -129,6 +129,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 | Repo layout | npm workspaces: `frontend/` (deployed), `backend/` (`@repo/backend` library), `infra/`; one Vercel deployment | decided |
 | Branch protection | None; `main` stays unprotected, CI runs on every PR | decided |
 | Workflow | Spec-driven; specs and code reach `main` only via PRs; merging a spec PR approves it; one implementation PR per spec, no subtasks (from NB-004) | decided |
+| Review rounds | Every PR Claude opens gets two `/review` rounds with fixes right after it's opened; the user reviews and merges after that (NB-011) | decided |
 | App name | Notehooked | decided |
 | Design | `docs/DESIGN.md` (NB-005) | decided |
 | Scope | M0–M5 and M8. M6 (generated notes) and M7 (audio) are cut, so the core (sources, grounded chat, citations) gets the time | decided |
