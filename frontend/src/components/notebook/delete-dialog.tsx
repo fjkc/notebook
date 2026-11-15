@@ -44,6 +44,9 @@ export function DeleteDialog({ id, title, open, onOpenChange }: DeleteDialogProp
       }
       toast.success("Notebook deleted.");
       router.replace("/");
+      // The action doesn't revalidate (see deleteNotebook), so clear the client router cache here:
+      // otherwise Back restores the earlier home page, which still lists the deleted notebook.
+      router.refresh();
     });
   }
 

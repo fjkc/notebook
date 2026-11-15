@@ -16,8 +16,8 @@ export async function renameNotebook(input: { id: string; title: string }): Prom
 /**
  * Doesn't redirect: the client shows the toast first, then navigates (NB-006 R10). No revalidatePath
  * either: it would re-render the page the action came from, the deleted notebook, and flash the
- * not-found view. The client's router.replace("/") fetches a fresh home page (dynamic pages aren't
- * kept in the client cache).
+ * not-found view. The client navigates with router.replace("/") and then router.refresh(), which
+ * clears the client router cache so Back doesn't show the deleted notebook either.
  */
 export async function deleteNotebook(input: { id: string }): Promise<ActionResult<null>> {
   return runAction("deleteNotebook", async (ownerId) => {
