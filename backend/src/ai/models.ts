@@ -1,16 +1,16 @@
 // The only place with Gemini model IDs. Checked against https://ai.google.dev/gemini-api/docs/models on 2026-11-13.
 
 /**
- * Chat answers (chosen in NB-009 on 2026-11-15). Measured on the same question and passages:
- * gemini-3.8-flash took 102 s (past the route's 60 s maxDuration), gemini-3.5-flash 5 s,
- * gemini-3.5-flash-lite under 1 s but with thinner answers and the summaries' quota.
+ * Chat answers (chosen in NB-009 on 2026-11-15): the same model as summaries, so chat and summaries
+ * share its free-tier quota (15 requests/min, 500/day). Measured on the same question and passages:
+ * gemini-3.8-flash took 102 s (past the route's 60 s maxDuration), gemini-3.5-flash 5 s with
+ * unknown free-tier limits, gemini-3.5-flash-lite under 1 s.
  */
-export const TEXT_MODEL = "gemini-3.5-flash";
+export const TEXT_MODEL = "gemini-3.5-flash-lite";
 
 /**
  * Source summaries (NB-007): latest stable Flash-Lite, checked against the models list on 2026-11-15
- * (there is no 3.8 Flash-Lite text model). ~1-2 s per summary without thinking, and its own
- * free-tier quota, so summaries don't use up the chat model's daily requests.
+ * (there is no 3.8 Flash-Lite text model). ~1-2 s per summary without thinking.
  */
 export const SUMMARY_MODEL = "gemini-3.5-flash-lite";
 

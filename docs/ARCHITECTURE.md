@@ -151,7 +151,7 @@ The client doesn't wait for the process call: after a create (whose action reval
 - Chunks: 1,000 characters of new text (`CHUNK_TARGET_CHARS`), 150 characters overlap (`CHUNK_OVERLAP_CHARS`), tails under 200 merged (`CHUNK_MIN_CHARS`), so at most 1,352 characters (`MAX_CHUNK_CHARS`)
 - Embedding calls and chunk inserts in batches of 100 (`EMBED_BATCH_SIZE`); the summary reads the first 30,000 characters (`SUMMARY_INPUT_CHARS`)
 - Shelf polling every 2 s (`SOURCE_POLL_MS`); stuck after 5 minutes (`STUCK_SOURCE_MS`)
-- Gemini free tier, read from the AI Studio rate-limit page on 2026-11-15: `gemini-3.5-flash` (chat, since NB-009; its limits still to be copied from that page); `gemini-embedding-001` 100 requests/min, 30,000 tokens/min, 1,000 requests/day; `gemini-3.5-flash-lite` (summaries) 15 requests/min, 250,000 tokens/min, 500 requests/day. A source costs one embedding call per 100 chunks plus one Flash-Lite summary call (at most ~8,000 input tokens), so summaries are limited by the 500 requests a day, not by tokens.
+- Gemini free tier, read from the AI Studio rate-limit page on 2026-11-15: `gemini-embedding-001` 100 requests/min, 30,000 tokens/min, 1,000 requests/day; `gemini-3.5-flash-lite` (chat answers since NB-009, and summaries) 15 requests/min, 250,000 tokens/min, 500 requests/day. A source costs one embedding call per 100 chunks plus one Flash-Lite summary call (at most ~8,000 input tokens); a question costs one embedding call plus one Flash-Lite call. Chat and summaries share the 500 Flash-Lite requests a day.
 
 Chat (§7):
 - Questions up to 2,000 characters (`MAX_QUESTION_CHARS`); the input shows a counter from 1,800 (`QUESTION_COUNTER_FROM_CHARS`)
@@ -184,7 +184,8 @@ Chat (§7):
    };
    ```
 6. The route forwards the model's UI message stream without its finish part, then writes the finish part itself, or an error part when the answer is empty after trimming (e.g. a safety block). Stream errors are mapped to the code's user message (a Gemini 429 → `RATE_LIMITED`), never a raw error.
-7. On a normal finish (`onEnd`): persist the assistant message with `citations` filtered to the numbers actually used in the answer. On abort ("Stop"), error or an empty answer nothing is saved; the user message stays, and the page shows a resent question once (a user message directly followed by one with the same text is left out of the history it renders).
+7. An answer still streaming after 50 s (`CHAT_ANSWER_TIMEOUT_MS`) is aborted and the client gets an error part, before Vercel's 60 s `maxDuration` would cut the stream silently.
+8. On a normal finish (`onEnd`): persist the assistant message with `citations` filtered to the numbers actually used in the answer. On abort ("Stop"), error or an empty answer nothing is saved; the user message stays, and the page shows a resent question once (a user message directly followed by one with the same text is left out of the history it renders).
 
 ### Rendering
 - `backend/src/shared/citations.ts` (client-safe) finds markers `[1]`, `[1, 3]`, `[1][3]`, ignores numbers that aren't in the citation map, and returns segments of text and citation refs.
