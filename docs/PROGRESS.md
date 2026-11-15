@@ -80,7 +80,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 
 **Done when:** on production, a multi-page PDF within the text cap (the 32-page fixture `fixtures/nist-csf-2.0.pdf`), an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
 
-## M5 · Chat with citations · open
+## M5 · Chat with citations · done
 
 - Retrieval and prompt builder.
 - Citation parser, with tests.
