@@ -127,3 +127,17 @@ export const CITATION_EXCERPT_CHARS = 400;
  * maxDuration, so the client gets an error part and "Try again" instead of a stream that just stops.
  */
 export const CHAT_ANSWER_TIMEOUT_MS = 50_000;
+
+// Suggested questions (docs/ARCHITECTURE.md §6 step 8).
+
+/** Most suggested questions stored and shown per notebook. */
+export const MAX_SUGGESTED_QUESTIONS = 5;
+
+/** A generated suggested question longer than this, in characters, is dropped. */
+export const MAX_SUGGESTED_QUESTION_CHARS = 120;
+
+/**
+ * Cap for the suggested-questions call, in ms. Runs after markReady, so 45 s + 5 s + 10 s keeps the
+ * process route within its 60 s maxDuration; a timeout is swallowed like any other failure.
+ */
+export const SUGGESTIONS_TIMEOUT_MS = 10_000;

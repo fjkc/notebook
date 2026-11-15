@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { generateSuggestedQuestions } from "../ai/suggestions";
 import * as notebooks from "../db/notebooks";
 import * as sources from "../db/sources";
 import * as storage from "../db/storage";
@@ -58,4 +59,20 @@ export async function deleteNotebook(ownerId: string, input: unknown): Promise<v
   const paths = await sources.listStoragePaths(ownerId, id);
   await notebooks.remove(ownerId, id);
   await storage.removeQuietly(paths);
+}
+
+/**
+ * Regenerates the notebook's suggested questions from its ready sources' summaries (NB-010 R5).
+ * No summaries → stores [] without a Gemini call. Nothing left after cleaning keeps the old ones.
+ * Throws on failure; the callers log and swallow it. Called only from services that have already
+ * checked ownership, so the IDs are trusted here.
+ */
+export async function refreshSuggestedQuestions(ownerId: string, notebookId: string): Promise<void> {
+  const summaries = await sources.listReadySummaries(ownerId, notebookId);
+  if (summaries.length === 0) {
+    await notebooks.setSuggestedQuestions(ownerId, notebookId, []);
+    return;
+  }
+  const questions = await generateSuggestedQuestions(summaries);
+  if (questions.length > 0) await notebooks.setSuggestedQuestions(ownerId, notebookId, questions);
 }

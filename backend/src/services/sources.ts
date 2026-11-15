@@ -20,6 +20,7 @@ import {
   PROCESS_BUDGET_MS,
   STUCK_SOURCE_MS,
 } from "../shared/limits";
+import { refreshSuggestedQuestions } from "./notebooks";
 import { assertNotebookOwner, assertSourceOwner } from "./ownership";
 
 export type { SourceStatus, SourceType } from "../db/sources";
@@ -234,6 +235,15 @@ async function trySummary(text: string, signal: AbortSignal): Promise<string | n
   }
 }
 
+/** Refreshes the suggested questions; a failure is logged and never fails the source or the delete (NB-010 R5). */
+async function trySuggestedQuestions(ownerId: string, notebookId: string): Promise<void> {
+  try {
+    await refreshSuggestedQuestions(ownerId, notebookId);
+  } catch (error) {
+    console.error("[suggestedQuestions] skipped", JSON.stringify(describeError(error)));
+  }
+}
+
 async function extract(ownerId: string, source: sources.SourceForProcessing): Promise<Extracted> {
   if (source.type === "text" && source.inputText) return extractText(source.inputText);
   if (source.type === "url" && source.url) return extractUrl(source.url);
@@ -293,7 +303,6 @@ export async function processSource(ownerId: string, sourceId: unknown): Promise
       ...(title ? { title } : {}),
     });
     if (!updated) throw new AppError("NOT_FOUND");
-    return { status: "ready" };
   } catch (error) {
     if (error instanceof AppError && error.code === "NOT_FOUND") throw error;
     const message = error instanceof AppError ? toUserMessage(error) : ERROR_CODES.INTERNAL.message;
@@ -301,6 +310,10 @@ export async function processSource(ownerId: string, sourceId: unknown): Promise
     if (!(await sources.markFailed(ownerId, id, message))) throw new AppError("NOT_FOUND");
     throw error;
   }
+  // After ready, outside the try (it can never mark the source failed), and before the route responds,
+  // so the client's refresh after the call already shows the questions (NB-010 R5).
+  await trySuggestedQuestions(ownerId, source.notebookId);
+  return { status: "ready" };
 }
 
 export async function deleteSource(ownerId: string, input: unknown): Promise<{ notebookId: string }> {
@@ -309,5 +322,7 @@ export async function deleteSource(ownerId: string, input: unknown): Promise<{ n
   await sources.remove(ownerId, id);
   // After the row: a failed file removal never fails the delete (NB-008 R12).
   if (source.storagePath) await storage.removeQuietly([source.storagePath]);
+  // Only a ready source changes the summaries; deleting a pending or failed one doesn't wait for Gemini.
+  if (source.status === "ready") await trySuggestedQuestions(ownerId, source.notebookId);
   return { notebookId: source.notebookId };
 }

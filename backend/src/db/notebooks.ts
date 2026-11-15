@@ -8,7 +8,12 @@ function fail(operation: string, error: { code?: string }): never {
 }
 
 export type NotebookListItem = { id: string; title: string; updatedAt: string; sourceCount: number };
-export type Notebook = { id: string; title: string; suggestedQuestions: unknown; updatedAt: string };
+export type Notebook = { id: string; title: string; suggestedQuestions: string[]; updatedAt: string };
+
+/** The stored jsonb as a list of strings; anything else counts as none. Written only by setSuggestedQuestions. */
+function toQuestions(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
+}
 
 /** Loads one notebook's id if it belongs to the owner, else null. Always scoped by owner_id. */
 export async function findOwned(ownerId: string, id: string): Promise<{ id: string } | null> {
@@ -51,7 +56,7 @@ export async function getOwned(ownerId: string, id: string): Promise<Notebook | 
   return {
     id: data.id as string,
     title: data.title as string,
-    suggestedQuestions: data.suggested_questions,
+    suggestedQuestions: toQuestions(data.suggested_questions),
     updatedAt: data.updated_at as string,
   };
 }
@@ -94,4 +99,14 @@ export async function updateTitle(ownerId: string, id: string, title: string): P
 export async function remove(ownerId: string, id: string): Promise<void> {
   const { error } = await getSupabase().from("notebooks").delete().eq("owner_id", ownerId).eq("id", id);
   if (error) fail("remove", error);
+}
+
+/** Replaces the notebook's suggested questions. A notebook deleted meanwhile matches no row, which is fine. */
+export async function setSuggestedQuestions(ownerId: string, id: string, questions: string[]): Promise<void> {
+  const { error } = await getSupabase()
+    .from("notebooks")
+    .update({ suggested_questions: questions })
+    .eq("owner_id", ownerId)
+    .eq("id", id);
+  if (error) fail("setSuggestedQuestions", error);
 }

@@ -48,6 +48,9 @@ const StartChatInput = z.strictObject({
     .optional(),
 });
 
+// The notebook ID's UUID check is assertNotebookOwner's (malformed → NOT_FOUND, so IDs can't be probed).
+const ClearChatInput = z.object({ notebookId: z.string() });
+
 const MINUTE_MS = 60_000;
 
 /**
@@ -89,4 +92,15 @@ export async function saveAnswer(ownerId: string, notebookId: string, text: stri
 export async function getHistory(ownerId: string, notebookId: unknown): Promise<ChatMessage[]> {
   await assertNotebookOwner(ownerId, notebookId);
   return collapseResends(await messages.listAll(ownerId, notebookId as string));
+}
+
+/**
+ * Deletes the notebook's conversation (NB-010 R8). It also deletes the rows the per-minute throttle
+ * counts, so clearing resets it: accepted behind the password gate (PROGRESS "Known limitations").
+ */
+export async function clearChat(ownerId: string, input: unknown): Promise<{ notebookId: string }> {
+  const { notebookId } = ClearChatInput.parse(input);
+  await assertNotebookOwner(ownerId, notebookId);
+  await messages.removeByNotebook(ownerId, notebookId);
+  return { notebookId };
 }

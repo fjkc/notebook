@@ -79,3 +79,9 @@ export async function countUserMessagesSince(ownerId: string, since: string): Pr
   if (error) fail("countUserMessagesSince", error);
   return count ?? 0;
 }
+
+/** Deletes all of the notebook's messages (clear chat). */
+export async function removeByNotebook(ownerId: string, notebookId: string): Promise<void> {
+  const { error } = await getSupabase().from("messages").delete().eq("owner_id", ownerId).eq("notebook_id", notebookId);
+  if (error) fail("removeByNotebook", error);
+}
