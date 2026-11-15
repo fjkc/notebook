@@ -101,6 +101,15 @@ export async function remove(ownerId: string, id: string): Promise<void> {
   if (error) fail("remove", error);
 }
 
+/** The notebook's stored suggested questions ([] if none, or if it isn't the owner's). */
+export async function getSuggestedQuestions(ownerId: string, id: string, signal?: AbortSignal): Promise<string[]> {
+  let query = getSupabase().from("notebooks").select("suggested_questions").eq("owner_id", ownerId).eq("id", id);
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query.maybeSingle();
+  if (error) fail("getSuggestedQuestions", error);
+  return toQuestions(data?.suggested_questions);
+}
+
 /** Replaces the notebook's suggested questions. A notebook deleted meanwhile matches no row, which is fine. */
 export async function setSuggestedQuestions(
   ownerId: string,

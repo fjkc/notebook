@@ -125,4 +125,4 @@ Deviations found during implementation, one line each.
 - The suggested-questions prompt also asks for questions in the language of the summaries, so a German notebook gets German suggestions.
 - `sourceIds` goes with each `sendMessage`/`regenerate` call as the request body, so a retry uses the current selection; "Try again" is hidden while every ready source is excluded.
 - R5 timing (review round 1): the whole suggestions step, not only the Gemini call, shares the time left until 55 s after the process call started (`SUGGESTIONS_DEADLINE_MS`) and is skipped with less than 3 s left, because two summary reads and the write also run after `markReady`.
-- R5 cleaning also drops repeated questions; a refresh re-reads the summaries before writing and skips the write if they changed meanwhile (overlapping refreshes).
+- R5 cleaning also drops repeated questions; a refresh re-reads the summaries before writing and skips the write if they changed meanwhile (overlapping refreshes), unless nothing is stored yet (review round 2: the newer refresh may fail).
