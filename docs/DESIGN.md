@@ -174,7 +174,7 @@ Empty state (no notebooks), in place of the list:
 ```
 
 - The Shelf is one horizontal strip of source chips: a status dot, the title, then the page count for a PDF or the type ("Text", "Web page") for the others. It scrolls sideways when full; "Add source" sits at its end.
-- **Reader:** for the hook last pressed, it shows the source title, the page and the cited excerpt (`Citation.excerpt`, up to 400 characters, ARCHITECTURE §7) in Newsreader with the `marker` highlight, and below it the source's summary. Pressing a hook also highlights that source's chip on the Shelf. No new data beyond what a citation carries.
+- **Reader:** for the hook last pressed, it shows the source title, the page (or the type) and the cited excerpt (`Citation.excerpt`, up to 400 characters, ARCHITECTURE §7) in Newsreader with the `marker` highlight, and below it the source's summary (from the notebook's sources list). Pressing a hook also highlights that source's chip on the Shelf; pressing it again, or "Close", clears both. Without an active hook the pane says how to open a passage.
 - **Takeaways** would list the generated notes (Brief, Q&A, Study sheet, Spoken recap). **Not planned:** M6 and M7 are cut, so the right pane, the tablet sheet and the mobile top bar show only the **Reader**, without tabs. The wireframes keep the tab to show where it would go.
 
 ### Notebook, tablet (640–1023 px)
@@ -194,7 +194,7 @@ Empty state (no notebooks), in place of the list:
 └──────────────────────────────────┴──────────────┘┘
 ```
 
-The Shelf stays; Ask fills the width; Reader and Takeaways open as a sheet from the right.
+The Shelf stays; Ask fills the width; the Reader opens as a sheet from the right **only from a hook** (NB-010): there's no "Reader" button in the Ask header (the wireframe's buttons are from before NB-010), because closing the sheet clears the active citation and a button could only open an empty sheet.
 
 ### Notebook, mobile (below 640 px)
 

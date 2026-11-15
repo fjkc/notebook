@@ -1,9 +1,12 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
+import type { Citation } from "@repo/backend/shared";
 import { messageText, type ChatUIMessage } from "@/lib/chat";
 import { Button } from "@/components/ui/button";
 import { AnswerMarkdown } from "./answer-markdown";
+
+const NO_CITATIONS: Citation[] = [];
 
 /** Distance from the bottom, in px, that still counts as "at the bottom" for following the stream. */
 const BOTTOM_SLACK_PX = 48;
@@ -13,7 +16,8 @@ type MessageListProps = {
   /** True while waiting for the first part of an answer. */
   waiting: boolean;
   error: string | null;
-  onRetry: () => void;
+  /** Null hides "Try again" (e.g. while every source is excluded). */
+  onRetry: (() => void) | null;
 };
 
 /**
@@ -56,10 +60,9 @@ export function MessageList({ messages, waiting, error, onRetry }: MessageListPr
             );
           }
           if (!text) return null;
-          const validNumbers = (message.metadata?.citations ?? []).map((c) => c.n);
           return (
             <li key={message.id} className="font-reading rounded-lg bg-paper text-[1.0625rem] leading-relaxed">
-              <AnswerMarkdown text={text} validNumbers={validNumbers} />
+              <AnswerMarkdown messageId={message.id} text={text} citations={message.metadata?.citations ?? NO_CITATIONS} />
             </li>
           );
         })}
@@ -71,9 +74,11 @@ export function MessageList({ messages, waiting, error, onRetry }: MessageListPr
         {error && (
           <li role="alert" className="flex flex-wrap items-center gap-3 text-sm text-danger">
             <span>{error}</span>
-            <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-              Try again
-            </Button>
+            {onRetry && (
+              <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+                Try again
+              </Button>
+            )}
           </li>
         )}
       </ol>

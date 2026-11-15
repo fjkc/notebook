@@ -5,7 +5,7 @@ export { AppError, describeError, toErrorBody, toUserMessage, type ErrorSummary 
 export { logOperation, type LogFields } from "./log";
 export { streamChatAnswer } from "./ai/chat";
 export { toAiError } from "./ai/errors";
-export { getHistory, saveAnswer, startChat, type ChatMessage, type StartedChat } from "./services/chat";
+export { clearChat, getHistory, saveAnswer, startChat, type ChatMessage, type StartedChat } from "./services/chat";
 export { isEmptyAnswer } from "./services/chat-history";
 export { checkDatabase } from "./services/health";
 export {

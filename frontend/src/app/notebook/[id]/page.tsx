@@ -62,7 +62,12 @@ export default async function NotebookPage({ params }: PageProps<"/notebook/[id]
   return (
     <div className="flex h-dvh flex-col">
       <TopBar title={notebook.title} actions={<NotebookMenu id={notebook.id} title={notebook.title} />} />
-      <NotebookLayout notebookId={notebook.id} sources={sources} history={history} />
+      <NotebookLayout
+        notebookId={notebook.id}
+        sources={sources}
+        history={history}
+        suggestedQuestions={notebook.suggestedQuestions}
+      />
     </div>
   );
 }

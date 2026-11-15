@@ -231,3 +231,19 @@ export async function titlesByIds(ownerId: string, ids: string[]): Promise<Map<s
   if (error) fail("titlesByIds", error);
   return new Map((data ?? []).map((row) => [row.id as string, row.title as string]));
 }
+
+/** The summaries of the notebook's ready sources that have one, oldest source first. */
+export async function listReadySummaries(ownerId: string, notebookId: string, signal?: AbortSignal): Promise<string[]> {
+  let query = getSupabase()
+    .from("sources")
+    .select("summary")
+    .eq("owner_id", ownerId)
+    .eq("notebook_id", notebookId)
+    .eq("status", "ready")
+    .not("summary", "is", null)
+    .order("created_at", { ascending: true });
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query;
+  if (error) fail("listReadySummaries", error);
+  return (data ?? []).map((row) => row.summary as string).filter((summary) => summary.trim().length > 0);
+}

@@ -4,11 +4,15 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { chatErrorMessage, messageText, type ChatUIMessage } from "@/lib/chat";
 import { AskInput } from "./ask-input";
+import { ClearChatDialog } from "./clear-chat-dialog";
 import { MessageList } from "./message-list";
-import { ReaderContent } from "./reader";
+import { useNotebookState, useSourceSelection } from "./notebook-state";
+import { SuggestedQuestions } from "./suggested-questions";
+
+const NO_SOURCE_REASON = "Add a source first";
+const NONE_PICKED_REASON = "Pick at least one source to ask about.";
 
 type AskProps = {
   notebookId: string;
@@ -16,25 +20,37 @@ type AskProps = {
   initialMessages: ChatUIMessage[];
   /** Loading the stored conversation failed; only shown while the chat is empty. */
   historyFailed: boolean;
-  /** At least one ready source; the Shelf's polling refresh updates it. */
-  hasReadySource: boolean;
+  /** The notebook's stored suggested questions (NB-010 R6); the refresh after processing updates them. */
+  suggestedQuestions: readonly string[];
 };
 
 /**
- * Ask (DESIGN.md → "Layout"): the chat area. Between 640 and 1023 px its header opens the Reader
- * as a sheet. The request carries only the new question; the server builds the history (R8).
+ * Ask (DESIGN.md → "Layout"): the chat area. The request carries only the new question and, when
+ * some ready sources are excluded, the included ones; the server builds the history (NB-009 R8).
  */
-export function Ask({ notebookId, initialMessages, historyFailed, hasReadySource }: AskProps) {
+export function Ask({ notebookId, initialMessages, historyFailed, suggestedQuestions }: AskProps) {
+  const { clearCitation } = useNotebookState();
+  const { readyCount, includedCount, sourceIds } = useSourceSelection();
+  const hasReadySource = readyCount > 0;
   const [transport] = useState(
     () =>
       new DefaultChatTransport<ChatUIMessage>({
         api: "/api/chat",
-        prepareSendMessagesRequest: ({ messages }) => {
+        // `body` is the per-request options' body: only its sourceIds is forwarded (the route is strict).
+        prepareSendMessagesRequest: ({ messages, body }) => {
           const question = messages.findLast((message) => message.role === "user");
-          return { body: { notebookId, text: question ? messageText(question) : "" } };
+          const selected: unknown = body?.sourceIds;
+          return {
+            body: {
+              notebookId,
+              text: question ? messageText(question) : "",
+              ...(Array.isArray(selected) ? { sourceIds: selected } : {}),
+            },
+          };
         },
       }),
   );
+  const [clearing, setClearing] = useState(false);
   const { messages, sendMessage, regenerate, stop, status, error, setMessages } = useChat<ChatUIMessage>({
     id: notebookId,
     messages: initialMessages,
@@ -54,29 +70,24 @@ export function Ask({ notebookId, initialMessages, historyFailed, hasReadySource
     });
   }, [status, setMessages]);
 
+  const disabledReason = !hasReadySource ? NO_SOURCE_REASON : includedCount === 0 ? NONE_PICKED_REASON : null;
+  // The current selection goes with each request, a retry included (R7).
+  const requestOptions = { body: sourceIds ? { sourceIds } : {} };
+  const send = (text: string) => void sendMessage({ text }, requestOptions);
+
   const lastIsAnswerWithText = messages.at(-1)?.role === "assistant" && messageText(messages.at(-1)!).length > 0;
 
   return (
     <section aria-labelledby="ask-heading" className="flex min-h-0 min-w-0 flex-1 flex-col lg:basis-3/5">
-      <div className="flex items-center justify-between gap-2 px-4 pt-4 sm:px-6">
+      <div className="flex h-12 items-center justify-between gap-2 px-4 pt-2 sm:px-6">
         <h2 id="ask-heading" className="text-sm font-medium">
           Ask
         </h2>
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button type="button" variant="ghost" size="sm" className="hidden sm:inline-flex lg:hidden">
-              Reader
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right">
-            <SheetHeader>
-              <SheetTitle>Reader</SheetTitle>
-            </SheetHeader>
-            <div className="px-4">
-              <ReaderContent />
-            </div>
-          </SheetContent>
-        </Sheet>
+        {messages.length > 0 && !busy && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => setClearing(true)}>
+            Clear chat
+          </Button>
+        )}
       </div>
 
       {messages.length === 0 ? (
@@ -88,6 +99,13 @@ export function Ask({ notebookId, initialMessages, historyFailed, hasReadySource
                 ? "Answers come only from your sources, with a numbered hook to each passage."
                 : "Add a source first. Answers come only from your sources, with a hook to each passage."}
             </p>
+            {hasReadySource && (
+              <SuggestedQuestions
+                questions={suggestedQuestions}
+                disabledReason={includedCount === 0 ? NONE_PICKED_REASON : null}
+                onPick={send}
+              />
+            )}
             {historyMissing && (
               <p role="alert" className="mt-4 text-sm text-danger">
                 Couldn&apos;t load the earlier conversation. Reload the page to try again.
@@ -100,20 +118,33 @@ export function Ask({ notebookId, initialMessages, historyFailed, hasReadySource
           messages={messages}
           waiting={busy && !lastIsAnswerWithText}
           error={status === "error" && error ? chatErrorMessage(error) : null}
-          onRetry={() => void regenerate()}
+          // With every source excluded a retry would send sourceIds: []; the line above the input says why.
+          onRetry={includedCount > 0 ? () => void regenerate(requestOptions) : null}
         />
       )}
 
       <div className="px-4 pb-4 sm:px-6">
         <div className="mx-auto w-full max-w-2xl">
-          <AskInput
-            disabled={!hasReadySource}
-            busy={busy}
-            onSend={(text) => void sendMessage({ text })}
-            onStop={() => void stop()}
-          />
+          {hasReadySource && includedCount < readyCount && (
+            <p className="mb-2 text-sm text-graphite">
+              {includedCount === 0
+                ? NONE_PICKED_REASON
+                : `Answering from ${includedCount} of ${readyCount} ${readyCount === 1 ? "source" : "sources"}`}
+            </p>
+          )}
+          <AskInput disabledReason={disabledReason} busy={busy} onSend={send} onStop={() => void stop()} />
         </div>
       </div>
+
+      <ClearChatDialog
+        notebookId={notebookId}
+        open={clearing}
+        onOpenChange={setClearing}
+        onCleared={() => {
+          setMessages([]);
+          clearCitation();
+        }}
+      />
     </section>
   );
 }

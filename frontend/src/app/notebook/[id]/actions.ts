@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  clearChat as clear,
   createTextSource as createText,
   createUrlSource as createUrl,
   deleteNotebook as remove,
@@ -58,4 +59,15 @@ export async function deleteSource(input: { id: string }): Promise<ActionResult<
   if (!result.ok) return result;
   revalidatePath(`/notebook/${result.data.notebookId}`);
   return { ok: true, data: null };
+}
+
+/**
+ * Deletes the notebook's conversation (NB-010 R8). No revalidatePath: the client empties the chat
+ * itself (useChat reads its initial messages only once), and the next load reads the empty table.
+ */
+export async function clearChat(input: { notebookId: string }): Promise<ActionResult<null>> {
+  return runAction("clearChat", async (ownerId) => {
+    await clear(ownerId, input);
+    return null;
+  });
 }

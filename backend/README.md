@@ -34,20 +34,21 @@ backend/
     access/               password gate: env, session tokens, password check, safe redirect
       index.ts            entry for "@repo/backend/access" (not server-only, the proxy imports it)
     db/                   typed query helpers: notebooks, sources, chunks, messages, notes
-      notebooks.ts        list (with source counts), get, count, insert, rename, delete
-      sources.ts          insert, list, get, counts, claim (claim_source RPC), mark ready/failed, delete
+      notebooks.ts        list (with source counts), get, count, insert, rename, delete, get/setSuggestedQuestions
+      sources.ts          insert, list, get, counts, claim (claim_source RPC), mark ready/failed, delete, listReadySummaries
       storage.ts          the private "sources" bucket: signed upload token, download, quiet remove
       chunks.ts           insertMany in batches, matchChunks (match_chunks RPC); the documented owner_id exception, see below
-      messages.ts         chat messages: insert, listRecent, listAll, countUserMessagesSince
+      messages.ts         chat messages: insert, listRecent, listAll, countUserMessagesSince, removeByNotebook
     services/             notebooks, sources, chat, notes, health: one module per area
-      notebooks.ts        list, get, create (limit), rename, delete
-      sources.ts          list (stuck → failed), create text (limits), process (pipeline), delete (+ test)
+      notebooks.ts        list, get, create (limit), rename, delete, refreshSuggestedQuestions (+ test)
+      sources.ts          list (stuck → failed), create text (limits), process (pipeline), delete; both refresh the suggested questions (+ test)
       ownership.ts        assertNotebookOwner, assertSourceOwner (+ test)
-      chat.ts             startChat (validate, own, throttle, history, store question, retrieve), saveAnswer, getHistory
+      chat.ts             startChat (validate, own, throttle, history, store question, retrieve), saveAnswer, getHistory, clearChat
       chat-history.ts     pure helpers: buildHistory, collapseResends, isEmptyAnswer (+ test)
     ai/
       models.ts           the only place with Gemini model IDs
-      prompts.ts          the only place with prompts: source summary, chat system prompt (+ test)
+      prompts.ts          the only place with prompts: source summary, chat system prompt, suggested questions and their cleaning (+ test)
+      suggestions.ts      generateSuggestedQuestions: structured output with SUMMARY_MODEL, 10 s, no retries
       chat.ts             streamChatAnswer: streamText with TEXT_MODEL for a prepared chat turn
       gemini.ts           provider with the server key, created lazily; AI_MAX_RETRIES
       errors.ts           toAiError(): Gemini 429 → RATE_LIMITED, else INTERNAL (+ test)

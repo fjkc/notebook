@@ -5,6 +5,7 @@ import { AppError } from "../errors";
 import { embedDocuments } from "../rag/embed";
 import { extractPdf, extractUrl } from "../rag/extract";
 import { summarizeSource } from "../rag/summarize";
+import { refreshSuggestedQuestions } from "./notebooks";
 import { processSource } from "./sources";
 
 vi.mock("../db/sources", () => ({ claim: vi.fn(), getOwned: vi.fn(), markReady: vi.fn(), markFailed: vi.fn() }));
@@ -18,6 +19,7 @@ vi.mock("../rag/extract", async (importOriginal) => ({
 vi.mock("../db/storage", () => ({ download: vi.fn(), removeQuietly: vi.fn(), pdfPath: vi.fn() }));
 vi.mock("../rag/summarize", () => ({ summarizeSource: vi.fn() }));
 vi.mock("./ownership", () => ({ assertSourceOwner: vi.fn(), assertNotebookOwner: vi.fn() }));
+vi.mock("./notebooks", () => ({ refreshSuggestedQuestions: vi.fn() }));
 
 const owner = "0f8e2c4a-1111-4222-8333-444455556666";
 const sourceId = "3c2b1a00-eeee-4fff-9aaa-bbbbccccdddd";
@@ -43,6 +45,14 @@ describe("processSource", () => {
     await expect(processSource(owner, sourceId)).resolves.toEqual({ status: "ready" });
     expect(insertMany).toHaveBeenCalledOnce();
     expect(markReady).toHaveBeenCalledWith(owner, sourceId, expect.objectContaining({ summary: "A summary." }));
+  });
+
+  it("refreshes the suggested questions after ready, and a failure there doesn't fail the source", async () => {
+    vi.mocked(summarizeSource).mockResolvedValue("A summary.");
+    vi.mocked(refreshSuggestedQuestions).mockRejectedValue(new AppError("RATE_LIMITED"));
+    await expect(processSource(owner, sourceId)).resolves.toEqual({ status: "ready" });
+    expect(refreshSuggestedQuestions).toHaveBeenCalledWith(owner, claimed.notebookId, expect.any(AbortSignal));
+    expect(markFailed).not.toHaveBeenCalled();
   });
 
   it("still marks the source ready, without a summary, when the summary call fails", async () => {

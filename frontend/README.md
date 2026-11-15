@@ -50,7 +50,7 @@ frontend/
       ui/                             shadcn components, restyled to our design
       shell/                          TopBar, Wordmark, ThemeToggle, ErrorView
       home/                           NotebookRow, NewNotebookButton
-      notebook/                       layout, Shelf (chips, popover, add dialog, poller), Ask, Reader, notebook menu and dialogs
+      notebook/                       layout, notebook-state (active citation, source selection), Shelf (chips, popover, add dialog, poller), Ask (citation hooks, suggested questions, clear chat), Reader, notebook menu and dialogs
     lib/
       config.ts                       APP_NAME, UI-only constants
       owner.ts                        getOwnerId(): requires a valid session, returns the owner
@@ -58,6 +58,7 @@ frontend/
       http.ts                         toErrorResponse(), withRoute() logging wrapper ({ streaming } for chat), toLoggedErrorBody() (shared with runAction)
       action.ts                       ActionResult, runAction(): every Server Action goes through it
       chat.ts                         ChatUIMessage type, chatErrorMessage() for the Ask pane (client-safe)
+      use-media-query.ts              useMediaQuery (which Reader sheet to mount), prefersReducedMotion
       supabase/browser.ts             publishable key, uploadToSignedUrl only
     proxy.ts                          access gate, then owner cookie (imports @repo/backend/shared and /access)
   vercel.json                         region fra1, daily health cron

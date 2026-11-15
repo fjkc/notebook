@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { generateSuggestedQuestions } from "../ai/suggestions";
 import * as notebooks from "../db/notebooks";
 import * as sources from "../db/sources";
 import * as storage from "../db/storage";
@@ -58,4 +59,34 @@ export async function deleteNotebook(ownerId: string, input: unknown): Promise<v
   const paths = await sources.listStoragePaths(ownerId, id);
   await notebooks.remove(ownerId, id);
   await storage.removeQuietly(paths);
+}
+
+/**
+ * Regenerates the notebook's suggested questions from its ready sources' summaries (NB-010 R5).
+ * No summaries → stores [] without a Gemini call. Nothing left after cleaning keeps the old ones.
+ * Throws on failure; the callers log and swallow it. Called only from services that have already
+ * checked ownership, so the IDs are trusted here. `signal` caps the whole step (the process route's deadline).
+ *
+ * Two refreshes can overlap (sources finishing close together, a delete during processing). The
+ * summaries are read again before the write, and a refresh whose set changed meanwhile doesn't
+ * write: the refresh started by that change covers the newer set. Unless the set only grew and
+ * nothing is stored yet: that refresh may still fail (a 429, the deadline), and some questions beat none.
+ */
+export async function refreshSuggestedQuestions(ownerId: string, notebookId: string, signal?: AbortSignal): Promise<void> {
+  const summaries = await sources.listReadySummaries(ownerId, notebookId, signal);
+  if (summaries.length === 0) {
+    await notebooks.setSuggestedQuestions(ownerId, notebookId, [], signal);
+    return;
+  }
+  const questions = await generateSuggestedQuestions(summaries, signal);
+  if (questions.length === 0) return;
+  const current = await sources.listReadySummaries(ownerId, notebookId, signal);
+  const changed = current.length !== summaries.length || current.some((summary, i) => summary !== summaries[i]);
+  if (changed) {
+    // Only a set that purely grew may still write (when nothing is stored): after a delete, these
+    // questions could be about the deleted source, and the delete's own refresh owns that state.
+    const onlyGrew = current.length > 0 && summaries.every((summary) => current.includes(summary));
+    if (!onlyGrew || (await notebooks.getSuggestedQuestions(ownerId, notebookId, signal)).length > 0) return;
+  }
+  await notebooks.setSuggestedQuestions(ownerId, notebookId, questions, signal);
 }
