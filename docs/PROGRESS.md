@@ -57,7 +57,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 
 **Done when:** `docs/DESIGN.md` exists and the deployed home page matches it in light and dark mode and on mobile.
 
-## M3 · Notebooks · open
+## M3 · Notebooks · done
 
 - DB helpers and notebook service, all scoped by `owner_id`.
 - Server actions: create, rename, delete notebook.
@@ -66,7 +66,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 
 **Done when:** on production, create, rename and delete work, and opening one of your notebook URLs in a private window and logging in there gives a 404.
 
-## M4 · Sources and ingestion · open
+## M4 · Sources and ingestion · done
 
 - Chunker and URL guard, with tests.
 - Text source end to end (create → process → chunks → ready).
@@ -80,7 +80,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 
 **Done when:** on production, a multi-page PDF within the text cap (the 32-page fixture `fixtures/nist-csf-2.0.pdf`), an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
 
-## M5 · Chat with citations · open
+## M5 · Chat with citations · done
 
 - Retrieval and prompt builder.
 - Citation parser, with tests.
@@ -133,6 +133,7 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 | App name | Notehooked | decided |
 | Design | `docs/DESIGN.md` (NB-005) | decided |
 | Scope | M0–M5 and M8. M6 (generated notes) and M7 (audio) are cut, so the core (sources, grounded chat, citations) gets the time | decided |
+| M3–M5 done | Marked done on 2026-11-15 on the user's request without separate production checks: the user checked the same code on the NB-010 preview (#28), and production runs it unchanged. Tagged `v1.0-mvp` | decided |
 
 ## Known limitations (for the README)
 
