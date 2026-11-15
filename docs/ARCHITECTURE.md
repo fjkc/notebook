@@ -128,7 +128,7 @@ Function `match_chunks(p_notebook_id, p_query_embedding, p_match_count, p_source
    - Text: single page with `page = null`.
 4. **Chunk** (`rag/chunk.ts`): each page separately (chunks never cross pages, so page numbers stay exact). Split into paragraphs, then sentences if needed; merge up to ~1,000 chars with ~150 chars overlap; merge a trailing piece under 200 chars into the previous chunk of the same page.
 5. **Embed** (`rag/embed.ts`): `embedMany` in sequential batches of up to 100, `taskType: "RETRIEVAL_DOCUMENT"`, `outputDimensionality: 768`. Insert chunks in batches.
-6. **Summarise:** one Flash call → 3–4 sentence summary → `sources.summary`. Best-effort: if it fails (quota, timeout), the failure is logged and the source still becomes `ready` with `summary = null`, since its chunks are stored and usable in answers.
+6. **Summarise:** one Flash-Lite call (`SUMMARY_MODEL`, ~1–2 s, its own quota) → 3–4 sentence summary → `sources.summary`. Best-effort: if it fails (quota, timeout), the failure is logged and the source still becomes `ready` with `summary = null`, since its chunks are stored and usable in answers.
 7. **Ready:** set `status = 'ready'`, `page_count`, `char_count`.
 8. **Suggested questions** (NB-010, after `ready`): regenerate `notebooks.suggested_questions` from all ready source summaries (structured output, 3–5 questions). Failure here is logged but doesn't fail the source.
 
