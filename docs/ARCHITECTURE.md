@@ -20,8 +20,8 @@ Reference for how the app is built and deployed. Keep it in sync with the code: 
         │ secret key                   │ API key   │
         ▼                              ▼           │
  ┌──── Supabase (EU, Frankfurt) ──┐  ┌── Gemini API (free tier) ──┐
- │ Postgres + pgvector            │  │ Flash: chat, summaries,     │
- │   notebooks, sources, chunks,  │  │   questions, notes, scripts │
+ │ Postgres + pgvector            │  │ Flash-Lite: chat answers,   │
+ │   notebooks, sources, chunks,  │  │   source summaries          │
  │   messages, notes              │  │ Embeddings (768 dims)       │
  │ Storage (private buckets)      │◄─┘ TTS (not planned)           │
  │   sources/ (PDF), audio/ (WAV) │◄────────────────────────────────┘
@@ -34,6 +34,17 @@ The browser uploads PDFs straight to Supabase Storage. Everything else goes thro
 - **Vercel (Hobby):** pushes to `main` deploy to production; other branches and PRs get preview URLs. Env vars are set per environment (Production, Preview).
 - **Supabase (free):** project in Frankfurt. Schema from `infra/supabase/migrations/`. Two private buckets: `sources` (PDF, max 10 MB) and `audio` (WAV).
 - **Gemini API (free tier):** called only from server code via the Vercel AI SDK. No billing enabled, so exceeding limits returns HTTP 429 instead of costing money.
+
+### Gemini models
+The IDs live only in `backend/src/ai/models.ts`; free-tier limits are in §6 "Limits".
+
+| Use | Model | Constant | Where it's called | Notes |
+|---|---|---|---|---|
+| Chat answers | `gemini-3.5-flash-lite` | `TEXT_MODEL` | `ai/chat.ts` (`streamChatAnswer`) | Streamed, temperature 0.2. Chosen in NB-009: under 1 s per answer; `gemini-3.8-flash` took 102 s, past the 60 s `maxDuration` |
+| Source summaries | `gemini-3.5-flash-lite` | `SUMMARY_MODEL` | `rag/summarize.ts` | 3–4 sentences from the first 30,000 characters; best-effort (skipped on failure) |
+| Embeddings (chunks and questions) | `gemini-embedding-001` | `EMBEDDING_MODEL` | `rag/embed.ts` | 768 dimensions (`EMBEDDING_DIMENSIONS`); `RETRIEVAL_DOCUMENT` for chunks, `RETRIEVAL_QUERY` for questions |
+
+Chat answers and summaries share one Flash-Lite quota; embeddings have their own.
 
 ### Runtime configuration
 - `frontend/vercel.json` pins functions to `fra1` (next to the Supabase region) and schedules the daily keep-alive cron.
