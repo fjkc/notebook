@@ -1,4 +1,5 @@
 import "server-only";
+import { FINALIZE_DB_TIMEOUT_MS } from "../shared/limits";
 import { getSupabase } from "../supabase";
 
 // Every query here is scoped by owner_id (CLAUDE.md rule 5). Supabase errors become a plain Error
@@ -127,14 +128,17 @@ export async function claim(ownerId: string, id: string): Promise<SourceForProce
   return first ? toProcessingRow(first) : null;
 }
 
-/** Returns false if no row was updated (the source was deleted meanwhile). */
+/**
+ * Runs after the processing budget with its own short timeout (FINALIZE_DB_TIMEOUT_MS): an abort of
+ * the budget after the server committed would otherwise turn a finished source into failed.
+ * Returns false if no row was updated (the source was deleted meanwhile).
+ */
 export async function markReady(
   ownerId: string,
   id: string,
   fields: { summary: string; pageCount: number | null; charCount: number },
-  signal?: AbortSignal,
 ): Promise<boolean> {
-  let query = getSupabase()
+  const { data, error } = await getSupabase()
     .from("sources")
     .update({
       status: "ready",
@@ -145,15 +149,14 @@ export async function markReady(
     })
     .eq("owner_id", ownerId)
     .eq("id", id)
-    .select("id");
-  if (signal) query = query.abortSignal(signal);
-  const { data, error } = await query;
+    .select("id")
+    .abortSignal(AbortSignal.timeout(FINALIZE_DB_TIMEOUT_MS));
   if (error) fail("markReady", error);
   return (data ?? []).length > 0;
 }
 
 /**
- * Uses the default request timeout on purpose: it runs after the processing budget may have expired.
+ * Runs after the budget may have expired, with its own short timeout (FINALIZE_DB_TIMEOUT_MS).
  * Only a processing row is updated, so a markReady that committed despite a client-side abort is
  * never overwritten. Returns false if nothing was updated (deleted meanwhile, or already ready).
  */
@@ -164,7 +167,8 @@ export async function markFailed(ownerId: string, id: string, message: string): 
     .eq("owner_id", ownerId)
     .eq("id", id)
     .eq("status", "processing")
-    .select("id");
+    .select("id")
+    .abortSignal(AbortSignal.timeout(FINALIZE_DB_TIMEOUT_MS));
   if (error) fail("markFailed", error);
   return (data ?? []).length > 0;
 }

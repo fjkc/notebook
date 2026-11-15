@@ -169,7 +169,7 @@ export async function processSource(ownerId: string, sourceId: unknown): Promise
     const text = pages.map((page) => page.text).join("\n\n");
     const summary = await summarizeSource(text, budget);
     const pageCount = pages.some((page) => page.page !== null) ? pages.length : null;
-    // Not under the budget: an abort after the server committed would turn a finished source into failed.
+    // Not under the budget (own 5 s timeout): an abort after the server committed would turn a finished source into failed.
     const updated = await sources.markReady(ownerId, id, { summary, pageCount, charCount: text.length });
     if (!updated) throw new AppError("NOT_FOUND");
     return { status: "ready" };

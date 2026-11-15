@@ -61,6 +61,12 @@ export const PROCESS_BUDGET_MS = 45_000;
 /** Cap for one chunk-insert batch during ingestion, in ms. */
 export const INGEST_DB_TIMEOUT_MS = 30_000;
 
+/**
+ * Cap for markReady and markFailed, which run after the budget: 45 s + 5 s + 5 s stays under the
+ * route's 60 s maxDuration, so a failure is always written before the platform ends the call.
+ */
+export const FINALIZE_DB_TIMEOUT_MS = 5_000;
+
 /** Cap for the health check's database query, in ms (docs/ARCHITECTURE.md → "Keep-alive and health"). */
 export const HEALTH_CHECK_TIMEOUT_MS = 5_000;
 

@@ -40,7 +40,7 @@ The browser uploads PDFs straight to Supabase Storage. Everything else goes thro
 - All Route Handlers: `export const runtime = "nodejs"` (parsing libraries need Node).
 - Long-running handlers (`/api/sources/[id]/process`, `/api/chat`, `/api/notes*`) set `export const maxDuration = 60`. Verify the current Vercel Hobby maximum; never rely on long timeouts, batch the work instead.
 - Every server Supabase request (queries and Storage) is aborted after `SUPABASE_REQUEST_TIMEOUT_MS` (10 s, `limits.ts`) unless the caller passes its own signal. Long operations, such as PDF downloads and chunk inserts in ingestion, pass a longer one; inserts go in batches.
-- A process call has a 45 s budget after the claim (`PROCESS_BUDGET_MS`), one signal shared by every AI and DB call, so it ends (and marks the source failed) well before the 60 s `maxDuration`. Each chunk-insert batch also gets its own 30 s cap (`INGEST_DB_TIMEOUT_MS`).
+- A process call has a 45 s budget after the claim (`PROCESS_BUDGET_MS`), one signal shared by the AI calls and the chunk inserts. Each chunk-insert batch also gets its own 30 s cap (`INGEST_DB_TIMEOUT_MS`). The final `markReady` or `markFailed` runs outside the budget with its own 5 s cap (`FINALIZE_DB_TIMEOUT_MS`), so a source that finished is never marked failed by a late abort, and the outcome is written before the 60 s `maxDuration`.
 - RLS is enabled on every table **with no policies**. Server code uses the secret key, which bypasses RLS; the public key in the browser can't read or write any table. The browser client exists only for `uploadToSignedUrl`.
 
 ### Keep-alive and health

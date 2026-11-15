@@ -30,8 +30,9 @@ export async function generateMetadata({ params }: PageProps<"/notebook/[id]">):
 export default async function NotebookPage({ params }: PageProps<"/notebook/[id]">) {
   const notebook = await loadNotebook((await params).id);
   if (!notebook) notFound();
-  // Polled with router.refresh() while a source is processing (NB-007 R14). A failed load must not
-  // swap the whole notebook for the error page mid-poll: the Shelf shows it inline and keeps polling.
+  // Polled with router.refresh() while a source is processing (NB-007 R14). A failed source list
+  // doesn't swap the notebook for the error page mid-poll: the Shelf shows it inline and keeps
+  // polling. A failed notebook load (above) still shows the error page, with its "Try again".
   let sources: SourceListItem[] | null = null;
   try {
     sources = await listSources(await getOwnerId(), notebook.id);
