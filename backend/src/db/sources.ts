@@ -21,15 +21,17 @@ export type SourceRow = {
   pageCount: number | null;
   charCount: number | null;
   summary: string | null;
+  /** The link of a web page source, else null. */
+  url: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
 /** A row with the stored input, for processing. */
-export type SourceForProcessing = SourceRow & { inputText: string | null };
+export type SourceForProcessing = SourceRow & { inputText: string | null; storagePath: string | null };
 
 const LIST_COLUMNS =
-  "id, notebook_id, type, title, status, error, page_count, char_count, summary, created_at, updated_at";
+  "id, notebook_id, type, title, status, error, page_count, char_count, summary, url, created_at, updated_at";
 
 type RawRow = Record<string, unknown>;
 
@@ -44,27 +46,44 @@ function toRow(raw: RawRow): SourceRow {
     pageCount: (raw.page_count as number | null) ?? null,
     charCount: (raw.char_count as number | null) ?? null,
     summary: (raw.summary as string | null) ?? null,
+    url: (raw.url as string | null) ?? null,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
   };
 }
 
 function toProcessingRow(raw: RawRow): SourceForProcessing {
-  return { ...toRow(raw), inputText: (raw.input_text as string | null) ?? null };
+  return {
+    ...toRow(raw),
+    inputText: (raw.input_text as string | null) ?? null,
+    storagePath: (raw.storage_path as string | null) ?? null,
+  };
 }
 
 export async function insert(
   ownerId: string,
-  fields: { notebookId: string; type: SourceType; title: string; inputText?: string },
+  fields: {
+    /** Set by the caller when another field depends on it (a PDF's storage path). */
+    id?: string;
+    notebookId: string;
+    type: SourceType;
+    title: string;
+    inputText?: string;
+    url?: string;
+    storagePath?: string;
+  },
 ): Promise<{ id: string }> {
   const { data, error } = await getSupabase()
     .from("sources")
     .insert({
+      ...(fields.id ? { id: fields.id } : {}),
       owner_id: ownerId,
       notebook_id: fields.notebookId,
       type: fields.type,
       title: fields.title,
       input_text: fields.inputText ?? null,
+      url: fields.url ?? null,
+      storage_path: fields.storagePath ?? null,
     })
     .select("id")
     .single();
@@ -88,7 +107,7 @@ export async function listByNotebook(ownerId: string, notebookId: string): Promi
 export async function getOwned(ownerId: string, id: string): Promise<SourceForProcessing | null> {
   const { data, error } = await getSupabase()
     .from("sources")
-    .select(`${LIST_COLUMNS}, input_text`)
+    .select(`${LIST_COLUMNS}, input_text, storage_path`)
     .eq("owner_id", ownerId)
     .eq("id", id)
     .maybeSingle();
@@ -136,8 +155,8 @@ export async function claim(ownerId: string, id: string): Promise<SourceForProce
 export async function markReady(
   ownerId: string,
   id: string,
-  /** `summary` is null when the summary call failed (best-effort). */
-  fields: { summary: string | null; pageCount: number | null; charCount: number },
+  /** `summary` is null when the summary call failed (best-effort); `title` replaces the provisional one. */
+  fields: { summary: string | null; pageCount: number | null; charCount: number; title?: string },
 ): Promise<boolean> {
   const { data, error } = await getSupabase()
     .from("sources")
@@ -147,6 +166,7 @@ export async function markReady(
       summary: fields.summary,
       page_count: fields.pageCount,
       char_count: fields.charCount,
+      ...(fields.title ? { title: fields.title } : {}),
     })
     .eq("owner_id", ownerId)
     .eq("id", id)
@@ -172,6 +192,18 @@ export async function markFailed(ownerId: string, id: string, message: string): 
     .abortSignal(AbortSignal.timeout(FINALIZE_DB_TIMEOUT_MS));
   if (error) fail("markFailed", error);
   return (data ?? []).length > 0;
+}
+
+/** Storage paths of the owner's PDF sources in a notebook, for removing the files after a delete. */
+export async function listStoragePaths(ownerId: string, notebookId: string): Promise<string[]> {
+  const { data, error } = await getSupabase()
+    .from("sources")
+    .select("storage_path")
+    .eq("owner_id", ownerId)
+    .eq("notebook_id", notebookId)
+    .not("storage_path", "is", null);
+  if (error) fail("listStoragePaths", error);
+  return (data ?? []).map((row) => row.storage_path as string);
 }
 
 /** Deletes the owner's source; its chunks go with it (on delete cascade). */

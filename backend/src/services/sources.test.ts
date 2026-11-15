@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STUCK_SOURCE_MS } from "../shared/limits";
-import { CLOCK_SKEW_MARGIN_MS, effectiveStatus, textTitle } from "./sources";
+import { CLOCK_SKEW_MARGIN_MS, effectiveStatus, pdfTitle, textTitle, urlTitle } from "./sources";
 
 describe("textTitle", () => {
   it("uses a plain first line", () => {
@@ -61,3 +61,29 @@ describe("effectiveStatus", () => {
     expect(effectiveStatus(ready, now)).toEqual(ready);
   });
 });
+
+describe("urlTitle", () => {
+  it("uses hostname plus path", () => {
+    expect(urlTitle(new URL("https://example.org/"))).toBe("example.org");
+    expect(urlTitle(new URL("https://example.org/wiki/Tide_mill?x=1"))).toBe("example.org/wiki/Tide_mill");
+  });
+
+  it("cuts to 80 characters", () => {
+    expect(urlTitle(new URL(`https://example.org/${"a".repeat(200)}`))).toHaveLength(80);
+  });
+});
+
+describe("pdfTitle", () => {
+  it("drops the extension in any case", () => {
+    expect(pdfTitle("  Annual report.PDF ")).toBe("Annual report");
+  });
+
+  it("falls back for an empty name", () => {
+    expect(pdfTitle(".pdf")).toBe("Untitled PDF");
+  });
+
+  it("cuts to 80 characters", () => {
+    expect(pdfTitle(`${"r".repeat(120)}.pdf`)).toHaveLength(80);
+  });
+});
+

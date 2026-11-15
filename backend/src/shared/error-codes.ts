@@ -18,6 +18,10 @@ export const ERROR_CODES = {
     status: 422,
     message: "We couldn't read that page. Check the link or paste the text instead.",
   },
+  UPLOAD_INCOMPLETE: {
+    status: 422,
+    message: "The upload didn't finish. Delete this source and add the PDF again.",
+  },
   ALREADY_PROCESSING: { status: 409, message: "This source is already being processed." },
   INTERNAL: { status: 500, message: "Something went wrong on our side. Try again." },
 } as const satisfies Record<string, { status: number; message: string }>;

@@ -114,7 +114,7 @@ Users can add a web article by its link and upload a PDF of up to 10 MB and 100 
 
 ## Implementation
 
-- [ ] **Implemented** (`feat/NB-008-web-pdf-sources`)
+- [x] **Implemented** (`feat/NB-008-web-pdf-sources`)
   - No user steps.
   - Acceptance:
     - CI passes, including every case in R4.
@@ -135,10 +135,18 @@ Users can add a web article by its link and upload a PDF of up to 10 MB and 100 
       - Deleting a PDF source and deleting a notebook with a PDF remove the files from the `sources` bucket (Storage browser).
       - The dialog's tabs work by keyboard; at 360 px the dialog fits without horizontal scroll.
     - Docs updated as in R15.
-    - **After merge, on production (M4 "Done when"):** a ~50-page PDF, an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
+    - **After merge, on production (M4 "Done when"):** the 32-page fixture PDF, an article URL and a pasted text all reach `ready`, a scanned PDF fails with the right message, and a `localhost` URL is rejected.
 
 ## Open questions
 None. Decided by the user (2026-11-14): the PDF limit is 100 pages plus the 200,000-character text cap (R6a, R10), and the fixture PDF is a public-domain US federal government publication picked during implementation (R14).
 
 ## Notes
 Deviations found during implementation, one line each.
+- The text cap is NB-007 R16's 80,000 characters, not 200,000: R6a's messages, the PROGRESS line and the near-limit check use 80,000 (built from `MAX_PASTED_TEXT_CHARS`). So most PDFs near 100 pages hit the text cap first; `MAX_PDF_PAGES` stays 100 as the bound on parsing work.
+- Fixture PDF: NIST CSWP 29 (CSF 2.0), 32 pages and 68,000 characters, instead of 40–60 pages: a typical 50-page publication has well over 80,000 characters (the Constitution pocket edition: 85 pages, 304,000), and the illustrated ones tried were over 10 MB or not reachable.
+- The chip keeps NB-007's "Processing" label while a source is pending or processing; "PDF" shows when the page count isn't known otherwise (e.g. failed), "n p." once ready.
+- `createResolver(resolve4, resolve6)` lives in `url-guard.ts` (not `fetch-page.ts`) so the ENODATA/ENOTFOUND handling is unit-tested without network; `fetch-page.ts` only wires in `dns.promises`.
+- Storage access is in a new `db/storage.ts` (signed upload token, download, quiet remove), not listed in "Files".
+- The dialog's tabs are disabled while a form is pending, so switching tabs can't hide a running upload.
+- Review round 1: the fetch also sends `Accept-Encoding: identity` and fails on a compressing `Content-Encoding` (round 2: only gzip, deflate, br, compress, zstd; an empty or unknown value is read as plain) (R3 said "no other headers"), because without it a server may send gzip, which we don't decompress.
+- Review round 1: control characters (e.g. U+0000 from some PDF fonts, which Postgres rejects) are stripped from extracted text (round 2: inside each extractor, before its minimum-text check, `rag/clean-text.ts`); PDF.js load or runtime failures stay `INTERNAL` and only its document errors map to `NO_TEXT_FOUND`; the link length is checked on the normalised href too; the client cuts long PDF file names to 200 characters and always sends a `.pdf` name.

@@ -17,9 +17,28 @@ import {
 /** Shown on the chip and in the popover. */
 export const TYPE_LABEL: Record<SourceListItem["type"], string> = { text: "Text", url: "Web page", pdf: "PDF" };
 
-/** "Text · 12,400 characters"; just the type while the size isn't known yet. */
+/** The chip's type label: a PDF shows its page count once known ("12 p."). */
+export function chipLabel(source: SourceListItem): string {
+  return source.type === "pdf" && source.pageCount !== null ? `${source.pageCount} p.` : TYPE_LABEL[source.type];
+}
+
+function hostnameOf(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+/** "Text · 12,400 characters", "PDF · 12 pages"; the web page's host is a link (rendered below). */
 export function sourceMeta(source: SourceListItem): string {
   const type = TYPE_LABEL[source.type];
+  if (source.type === "pdf") {
+    if (source.pageCount === null) return type;
+    return `${type} · ${source.pageCount} ${source.pageCount === 1 ? "page" : "pages"}`;
+  }
+  if (source.type === "url") return type;
   return source.charCount === null ? type : `${type} · ${source.charCount.toLocaleString("en-US")} characters`;
 }
 
@@ -38,7 +57,7 @@ export function SourcePopoverBody({ source, processing, onRetry, onDelete }: Sou
     <div className="grid gap-3">
       <div className="grid gap-1">
         <p className="leading-snug font-medium break-words">{source.title}</p>
-        <p className="text-xs text-graphite">{sourceMeta(source)}</p>
+        <SourceMeta source={source} />
       </div>
       {source.summary ? (
         <p className="font-reading text-sm leading-relaxed">{source.summary}</p>
@@ -63,6 +82,28 @@ export function SourcePopoverBody({ source, processing, onRetry, onDelete }: Sou
         Delete source
       </Button>
     </div>
+  );
+}
+
+function SourceMeta({ source }: { source: SourceListItem }) {
+  const host = source.type === "url" ? hostnameOf(source.url) : null;
+  return (
+    <p className="text-xs text-graphite">
+      {sourceMeta(source)}
+      {host && source.url && (
+        <>
+          {" · "}
+          <a
+            href={source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="break-all underline underline-offset-2 hover:text-ink"
+          >
+            {host}
+          </a>
+        </>
+      )}
+    </p>
   );
 }
 

@@ -1,16 +1,20 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import * as chunksDb from "../db/chunks";
 import * as sources from "../db/sources";
+import * as storage from "../db/storage";
 import { AppError, describeError, toUserMessage } from "../errors";
-import { chunkPages, type PageText } from "../rag/chunk";
+import { chunkPages } from "../rag/chunk";
 import { embedDocuments } from "../rag/embed";
-import { extractText } from "../rag/extract";
+import { extractPdf, extractText, extractUrl, type Extracted } from "../rag/extract";
 import { summarizeSource } from "../rag/summarize";
+import { parsePublicUrl } from "../rag/url-guard";
 import { ERROR_CODES } from "../shared/error-codes";
 import {
   MAX_NEW_SOURCES_PER_OWNER_PER_HOUR,
   MAX_PASTED_TEXT_CHARS,
+  MAX_PDF_BYTES,
   MAX_SOURCE_TITLE_CHARS,
   MAX_SOURCES_PER_NOTEBOOK,
   PROCESS_BUDGET_MS,
@@ -23,7 +27,7 @@ export type { SourceStatus, SourceType } from "../db/sources";
 /** What the Shelf gets for each source. */
 export type SourceListItem = Pick<
   sources.SourceRow,
-  "id" | "type" | "title" | "status" | "error" | "pageCount" | "charCount" | "summary" | "createdAt"
+  "id" | "type" | "title" | "status" | "error" | "pageCount" | "charCount" | "summary" | "url" | "createdAt"
 >;
 
 const STUCK_MESSAGE = "Processing timed out.";
@@ -51,6 +55,54 @@ const CreateTextSourceInput = z.object({
     .max(MAX_PASTED_TEXT_CHARS, `Pasted text can be up to ${formatCount(MAX_PASTED_TEXT_CHARS)} characters.`),
 });
 const DeleteSourceInput = z.object({ id: z.string() });
+const CreateUrlSourceInput = z.object({ notebookId: z.string(), url: z.string().trim() });
+const PDF_NAME_MESSAGE = "Choose a PDF file.";
+const CreatePdfUploadInput = z.object({
+  notebookId: z.string(),
+  fileName: z
+    .string(PDF_NAME_MESSAGE)
+    .trim()
+    .min(1, PDF_NAME_MESSAGE)
+    .max(200, PDF_NAME_MESSAGE)
+    .refine((name) => name.toLowerCase().endsWith(".pdf"), PDF_NAME_MESSAGE),
+  fileSize: z.number(PDF_NAME_MESSAGE).int(PDF_NAME_MESSAGE).positive(PDF_NAME_MESSAGE),
+});
+
+/** R6a: extracted URL and PDF text has the pasted-text cap, because the same quota and time budget apply. */
+export function textCapMessage(type: "url" | "pdf"): string {
+  const cap = formatCount(MAX_PASTED_TEXT_CHARS);
+  return type === "url"
+    ? `This page has more than ${cap} characters of text. Paste the part you need instead.`
+    : `This PDF has more than ${cap} characters of text. Split it, or paste the part you need.`;
+}
+
+/** Cuts a title to MAX_SOURCE_TITLE_CHARS without splitting a surrogate pair. */
+function cutTitle(title: string): string {
+  const trimmed = title.trim();
+  if (trimmed.length <= MAX_SOURCE_TITLE_CHARS) return trimmed;
+  let cut = trimmed.slice(0, MAX_SOURCE_TITLE_CHARS);
+  if (/[\ud800-\udbff]$/.test(cut)) cut = cut.slice(0, -1);
+  return cut.trimEnd();
+}
+
+/** Provisional title for a link until extraction finds the page's own: hostname plus path, max 80. */
+export function urlTitle(url: URL): string {
+  const path = url.pathname === "/" ? "" : decodeURIComponentSafe(url.pathname);
+  return cutTitle(`${url.hostname}${path}`);
+}
+
+function decodeURIComponentSafe(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+/** A PDF's title from its file name: without ".pdf", trimmed, max 80, or "Untitled PDF". */
+export function pdfTitle(fileName: string): string {
+  return cutTitle(fileName.trim().replace(/\.pdf$/i, "")) || "Untitled PDF";
+}
 
 /**
  * A pending or processing source whose updated_at is more than STUCK_SOURCE_MS (plus a clock-skew margin) old is shown as
@@ -92,8 +144,8 @@ export async function listSources(ownerId: string, notebookId: unknown): Promise
   const rows = await sources.listByNotebook(ownerId, notebookId as string);
   const now = Date.now();
   return rows.map((row) => {
-    const { id, type, title, status, error, pageCount, charCount, summary, createdAt } = effectiveStatus(row, now);
-    return { id, type, title, status, error, pageCount, charCount, summary, createdAt };
+    const { id, type, title, status, error, pageCount, charCount, summary, url, createdAt } = effectiveStatus(row, now);
+    return { id, type, title, status, error, pageCount, charCount, summary, url, createdAt };
   });
 }
 
@@ -103,8 +155,60 @@ export async function createTextSource(
 ): Promise<{ sourceId: string; notebookId: string }> {
   const { notebookId, title, text } = CreateTextSourceInput.parse(input);
   await assertNotebookOwner(ownerId, notebookId);
+  await assertSourceLimits(ownerId, notebookId);
 
-  // Count then insert without a lock: a burst may overshoot by a few, harmless behind the password gate.
+  const { id } = await sources.insert(ownerId, {
+    notebookId,
+    type: "text",
+    title: title ?? textTitle(text),
+    inputText: text,
+  });
+  return { sourceId: id, notebookId };
+}
+
+/** Adds a pending web page source (NB-008 R7). The link is checked without DNS here; the fetch checks again. */
+export async function createUrlSource(
+  ownerId: string,
+  input: unknown,
+): Promise<{ sourceId: string; notebookId: string }> {
+  const { notebookId, url: link } = CreateUrlSourceInput.parse(input);
+  const url = parsePublicUrl(link);
+  await assertNotebookOwner(ownerId, notebookId);
+  await assertSourceLimits(ownerId, notebookId);
+
+  const { id } = await sources.insert(ownerId, { notebookId, type: "url", title: urlTitle(url), url: url.href });
+  return { sourceId: id, notebookId };
+}
+
+/**
+ * Adds a pending PDF source and returns a signed upload token for the browser (NB-008 R8). The file goes
+ * straight to Storage, never through our route (Vercel's 4.5 MB body limit).
+ */
+export async function createPdfUpload(
+  ownerId: string,
+  input: unknown,
+): Promise<{ sourceId: string; path: string; token: string }> {
+  const { notebookId, fileName, fileSize } = CreatePdfUploadInput.parse(input);
+  await assertNotebookOwner(ownerId, notebookId);
+  if (fileSize > MAX_PDF_BYTES) throw new AppError("FILE_TOO_LARGE");
+  await assertSourceLimits(ownerId, notebookId);
+
+  const id = randomUUID();
+  const storagePath = storage.pdfPath(ownerId, id);
+  await sources.insert(ownerId, { id, notebookId, type: "pdf", title: pdfTitle(fileName), storagePath });
+  try {
+    const { token } = await storage.createUploadToken(storagePath);
+    return { sourceId: id, path: storagePath, token };
+  } catch (error) {
+    // No upload can follow, so don't leave an empty pending source behind.
+    await sources.remove(ownerId, id).catch(() => {});
+    throw error;
+  }
+}
+
+/** Sources per notebook and new sources per hour (NB-007). Count then insert without a lock. */
+async function assertSourceLimits(ownerId: string, notebookId: string): Promise<void> {
+  // A burst may overshoot by a few, harmless behind the password gate.
   if ((await sources.countInNotebook(ownerId, notebookId)) >= MAX_SOURCES_PER_NOTEBOOK) {
     throw new AppError("LIMIT_REACHED", `A notebook can have up to ${MAX_SOURCES_PER_NOTEBOOK} sources.`);
   }
@@ -115,14 +219,6 @@ export async function createTextSource(
       `You've added ${MAX_NEW_SOURCES_PER_OWNER_PER_HOUR} sources in the last hour. Try again later.`,
     );
   }
-
-  const { id } = await sources.insert(ownerId, {
-    notebookId,
-    type: "text",
-    title: title ?? textTitle(text),
-    inputText: text,
-  });
-  return { sourceId: id, notebookId };
 }
 
 /**
@@ -138,9 +234,11 @@ async function trySummary(text: string, signal: AbortSignal): Promise<string | n
   }
 }
 
-function extract(source: sources.SourceForProcessing): PageText[] {
+async function extract(ownerId: string, source: sources.SourceForProcessing): Promise<Extracted> {
   if (source.type === "text" && source.inputText) return extractText(source.inputText);
-  throw new Error(`No extractor for source type ${source.type}`);
+  if (source.type === "url" && source.url) return extractUrl(source.url);
+  if (source.type === "pdf" && source.storagePath) return extractPdf(source.storagePath, ownerId);
+  throw new Error(`No input for source type ${source.type}`);
 }
 
 /**
@@ -159,7 +257,13 @@ export async function processSource(ownerId: string, sourceId: unknown): Promise
 
   const budget = AbortSignal.timeout(PROCESS_BUDGET_MS);
   try {
-    const pages = extract(source);
+    const extracted = await extract(ownerId, source);
+    const { pages } = extracted;
+    const text = pages.map((page) => page.text).join("\n\n");
+    // R6a: fail fast and clearly, before any embedding.
+    if (source.type !== "text" && text.length > MAX_PASTED_TEXT_CHARS) {
+      throw new AppError("LIMIT_REACHED", textCapMessage(source.type));
+    }
     const chunks = chunkPages(pages);
     if (chunks.length === 0) throw new Error("Source has no text to chunk");
 
@@ -179,11 +283,15 @@ export async function processSource(ownerId: string, sourceId: unknown): Promise
       budget,
     );
 
-    const text = pages.map((page) => page.text).join("\n\n");
     const summary = await trySummary(text, budget);
-    const pageCount = pages.some((page) => page.page !== null) ? pages.length : null;
+    const title = extracted.title ? cutTitle(extracted.title) : undefined;
     // Not under the budget (own 5 s timeout): an abort after the server committed would turn a finished source into failed.
-    const updated = await sources.markReady(ownerId, id, { summary, pageCount, charCount: text.length });
+    const updated = await sources.markReady(ownerId, id, {
+      summary,
+      pageCount: extracted.pageCount ?? null,
+      charCount: text.length,
+      ...(title ? { title } : {}),
+    });
     if (!updated) throw new AppError("NOT_FOUND");
     return { status: "ready" };
   } catch (error) {
@@ -199,5 +307,7 @@ export async function deleteSource(ownerId: string, input: unknown): Promise<{ n
   const { id } = DeleteSourceInput.parse(input);
   const source = await assertSourceOwner(ownerId, id);
   await sources.remove(ownerId, id);
+  // After the row: a failed file removal never fails the delete (NB-008 R12).
+  if (source.storagePath) await storage.removeQuietly([source.storagePath]);
   return { notebookId: source.notebookId };
 }

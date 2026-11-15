@@ -1,6 +1,8 @@
 import "server-only";
 import { z } from "zod";
 import * as notebooks from "../db/notebooks";
+import * as sources from "../db/sources";
+import * as storage from "../db/storage";
 import { AppError } from "../errors";
 import { MAX_NOTEBOOKS_PER_OWNER } from "../shared/limits";
 import { NotebookTitle } from "../shared/notebook-title";
@@ -52,5 +54,8 @@ export async function renameNotebook(ownerId: string, input: unknown): Promise<{
 export async function deleteNotebook(ownerId: string, input: unknown): Promise<void> {
   const { id } = DeleteNotebookInput.parse(input);
   await assertNotebookOwner(ownerId, id);
+  // Listed before the delete (the rows go with the notebook), removed after; never fails the delete (NB-008 R12).
+  const paths = await sources.listStoragePaths(ownerId, id);
   await notebooks.remove(ownerId, id);
+  await storage.removeQuietly(paths);
 }
