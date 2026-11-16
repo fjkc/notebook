@@ -156,7 +156,7 @@ Every PR Claude opens (spec PRs, implementation PRs, any other) gets **two revie
 
 Review rounds can go on forever if every finding gets fixed, because each fix exposes the next layer. So Claude triages every finding before fixing:
 - 🔴 **Blocker:** always fixed.
-- 🟠 **Should fix:** judged per finding. Is it a real problem **for this project**: a weekend take-home, a public demo, a private repo, one author? A real bug, a security or data risk, or something that will bite in the next milestone gets fixed. Theoretical hardening and enterprise-grade polish don't.
+- 🟠 **Should fix:** judged per finding. Is it a real problem **for this project**: a weekend take-home, a public demo, a public repo, one author? A real bug, a security or data risk, or something that will bite in the next milestone gets fixed. Theoretical hardening and enterprise-grade polish don't.
 - 🟡 **Nit:** fixed in round 1 when cheap, never in later rounds.
 
 For every finding that isn't fixed, Claude replies in its thread with the **reasoning** (why it doesn't matter in this scope) and resolves the thread. If Claude is **unsure, or thinks a human should decide**, the reply pings the PR author with a concrete question and leaves the thread open. Fixed findings get a reply naming the commit, and their thread is resolved. Claude's report lists every won't-fix decision, so you can reopen any of them.

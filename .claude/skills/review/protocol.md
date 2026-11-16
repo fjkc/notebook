@@ -38,7 +38,7 @@ The PR was reviewed before, and its author has pushed fixes. You don't get the e
 
 ## Calibrate to this project
 
-This is a weekend take-home with a public demo, a private repo and one author (CLAUDE.md: "reliability beats feature count"). Rate by real impact here, not by what an enterprise codebase would need:
+This is a weekend take-home with a public demo, a public repo and one author (CLAUDE.md: "reliability beats feature count"). Rate by real impact here, not by what an enterprise codebase would need:
 - `blocker`: it breaks the demo flow, loses or leaks data, exposes a secret, lets someone act as another owner, or lets a review agent escape its read-only sandbox. Also an unmet acceptance criterion.
 - `should-fix`: a real bug or risk that a reviewer of this take-home would notice, or that will bite in the next milestone.
 - `nit`: style, wording, theoretical hardening, or "nice to have".

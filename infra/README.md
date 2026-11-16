@@ -13,7 +13,7 @@ Everything that defines or documents the environment the app runs in: database s
 
 Two infra files live elsewhere because their tools require it:
 - `frontend/vercel.json`: Vercel reads it from the project's root directory (`frontend/`).
-- `.github/workflows/ci.yml`: GitHub only reads workflows from the repo root. One job, `checks`, runs `npm ci`, lint, typecheck, test and build on every pull request and every push to `main`, on the Node version from `.nvmrc`. It has read-only permissions and uses no secrets. `main` is not branch-protected (`docs/PROGRESS.md` → "Decisions log"), so a red check doesn't block a merge: don't merge until it's green.
+- `.github/workflows/ci.yml`: GitHub only reads workflows from the repo root. One job, `checks`, runs `npm ci`, lint, typecheck, test and build on every pull request and every push to `main`, on the Node version from `.nvmrc`. It has read-only permissions and uses no secrets. `main` is branch-protected (`docs/PROGRESS.md` → "Decisions log"): changes arrive only through a PR, and a PR can't merge until `checks` is green, admins included. Renaming the job means updating the required check in the branch protection too.
 
 ## Layout
 
