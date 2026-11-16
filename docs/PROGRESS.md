@@ -127,7 +127,8 @@ Every other dependency is installed by the spec that first uses it (NB-002 → "
 | UI language | English | decided |
 | Regions | Supabase Frankfurt, Vercel fra1 | decided |
 | Repo layout | npm workspaces: `frontend/` (deployed), `backend/` (`@repo/backend` library), `infra/`; one Vercel deployment | decided |
-| Branch protection | None; `main` stays unprotected, CI runs on every PR | decided |
+| Branch protection | Changed on 2026-11-16 (was none): `main` accepts changes only through a PR whose CI job `checks` passed, for admins too; no force-push, no deletion; 0 required approvals, since there is one author | decided |
+| Repo visibility | Public since 2026-11-16 (was private), for the reviewers; the full history was checked for secrets first. Vercel's Git Fork Protection (Settings → Security) stays on, so a fork PR can't build a preview with the server secrets unless a team member approves it (`infra/README.md` step 6) | decided |
 | Workflow | Spec-driven; specs and code reach `main` only via PRs; merging a spec PR approves it; one implementation PR per spec, no subtasks (from NB-004) | decided |
 | Review rounds | Every PR Claude opens gets two `/review` rounds with fixes right after it's opened; the user reviews and merges after that (NB-011) | decided |
 | App name | Notehooked | decided |

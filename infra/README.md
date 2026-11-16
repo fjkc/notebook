@@ -13,7 +13,7 @@ Everything that defines or documents the environment the app runs in: database s
 
 Two infra files live elsewhere because their tools require it:
 - `frontend/vercel.json`: Vercel reads it from the project's root directory (`frontend/`).
-- `.github/workflows/ci.yml`: GitHub only reads workflows from the repo root. One job, `checks`, runs `npm ci`, lint, typecheck, test and build on every pull request and every push to `main`, on the Node version from `.nvmrc`. It has read-only permissions and uses no secrets. `main` is not branch-protected (`docs/PROGRESS.md` → "Decisions log"), so a red check doesn't block a merge: don't merge until it's green.
+- `.github/workflows/ci.yml`: GitHub only reads workflows from the repo root. One job, `checks`, runs `npm ci`, lint, typecheck, test and build on every pull request and every push to `main`, on the Node version from `.nvmrc`. It has read-only permissions and uses no secrets. `main` is branch-protected (`docs/PROGRESS.md` → "Decisions log"): changes arrive only through a PR, and a PR can't merge until `checks` is green, admins included. Renaming the job means updating the required check in the branch protection too.
 
 ## Layout
 
@@ -47,6 +47,7 @@ Hosting (Vercel, `fra1`), database and storage (Supabase, Frankfurt), AI (Gemini
    - **Framework preset:** Next.js (detected). Leave Build, Output and Install Command on their defaults: Vercel detects the npm workspace and installs from the repo root with the root `package-lock.json`.
    - **Node.js version:** comes from `engines.node` (`26.x`) in `frontend/package.json`, which overrides the project setting. The build log shows it.
    - **Environment variables:** all six from `frontend/.env.example`, for **Production and Preview**. Without `APP_PASSWORD` and `SESSION_SECRET` nobody can log in. Env changes only apply to new deployments: redeploy after changing one.
+   - **Git Fork Protection** (Settings → Security, on by default): keep it on. The repo is public, so anyone can open a PR from a fork, and a preview built from it would run their code with the Preview secrets (`SUPABASE_SECRET_KEY` bypasses RLS). With it on, a fork PR deploys only after a team member approves it.
    - Deploy.
 7. **Verify:** `GET https://<deployment>/api/health` returns `{ "ok": true, "db": true }`, and the cron appears under Project → Settings → Schedules (formerly "Cron Jobs"). Vercel lists it only after a production deployment.
 
