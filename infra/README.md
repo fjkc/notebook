@@ -47,7 +47,7 @@ Hosting (Vercel, `fra1`), database and storage (Supabase, Frankfurt), AI (Gemini
    - **Framework preset:** Next.js (detected). Leave Build, Output and Install Command on their defaults: Vercel detects the npm workspace and installs from the repo root with the root `package-lock.json`.
    - **Node.js version:** comes from `engines.node` (`26.x`) in `frontend/package.json`, which overrides the project setting. The build log shows it.
    - **Environment variables:** all six from `frontend/.env.example`, for **Production and Preview**. Without `APP_PASSWORD` and `SESSION_SECRET` nobody can log in. Env changes only apply to new deployments: redeploy after changing one.
-   - **Git Fork Protection** (Settings → Git): keep it on. The repo is public, so anyone can open a PR from a fork, and a preview built from it would run their code with the Preview secrets (`SUPABASE_SECRET_KEY` bypasses RLS). With it on, a fork PR deploys only after a team member approves it.
+   - **Git Fork Protection** (Settings → Security, on by default): keep it on. The repo is public, so anyone can open a PR from a fork, and a preview built from it would run their code with the Preview secrets (`SUPABASE_SECRET_KEY` bypasses RLS). With it on, a fork PR deploys only after a team member approves it.
    - Deploy.
 7. **Verify:** `GET https://<deployment>/api/health` returns `{ "ok": true, "db": true }`, and the cron appears under Project → Settings → Schedules (formerly "Cron Jobs"). Vercel lists it only after a production deployment.
 
